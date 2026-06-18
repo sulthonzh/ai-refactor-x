@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 "use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -6,6 +5,10 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -22,9 +25,20 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// src/simple-cli.ts
-var import_promises5 = require("fs/promises");
+// src/index.ts
+var src_exports = {};
+__export(src_exports, {
+  AIRefactor: () => AIRefactor,
+  aiRefactor: () => aiRefactor,
+  analyze: () => analyze,
+  createRefactor: () => createRefactor,
+  fix: () => fix,
+  refactor: () => refactor,
+  suggest: () => suggest
+});
+module.exports = __toCommonJS(src_exports);
 
 // src/AIRefactor.ts
 var import_promises4 = require("fs/promises");
@@ -526,36 +540,34 @@ var AIAnalyzer = class {
    */
   async findUnusedVariables(content, filePath) {
     const issues = [];
-    const variableMatches = content.matchAll(/(?:let|const|var)\s+(\w+)/g);
-    const definedVars = /* @__PURE__ */ new Set();
-    const usedVars = /* @__PURE__ */ new Set();
-    for (const match of variableMatches) {
-      const varName = match[1];
-      if (!/\w+\s*\([^)]*\)\s*\{/.test(content.substring(0, match.index))) {
-        definedVars.add(varName);
-      }
+    const declarationRegex = /(?:let|const|var)\s+(\w+)/g;
+    const declarations = [];
+    for (const match of content.matchAll(declarationRegex)) {
+      declarations.push({ name: match[1], index: match.index });
     }
-    const usageMatches = content.matchAll(/\b(\w+)\b/g);
-    for (const match of usageMatches) {
-      usedVars.add(match[1]);
-    }
-    for (const varName of definedVars) {
-      if (!usedVars.has(varName)) {
-        const line = content.substring(0, content.indexOf(varName, content.search(varName))).split("\n").length;
-        issues.push({
-          type: "verification",
-          severity: "low",
-          category: "unused-variable",
-          title: "Unused variable",
-          description: `Variable '${varName}' is defined but never used`,
-          file: filePath,
-          line,
-          column: 0,
-          codeSnippet: `const ${varName}`,
-          fixable: true,
-          suggestion: `Remove unused variable '${varName}'`,
-          confidence: 0.8
-        });
+    for (const decl of declarations) {
+      const { name, index } = decl;
+      const usageAfterDecl = content.substring(index + name.length).matchAll(new RegExp(`\\b${name}\\b`, "g"));
+      if (usageAfterDecl) {
+        const usages = Array.from(usageAfterDecl);
+        if (usages.length === 0) {
+          const line = content.substring(0, index).split("\n").length + 1;
+          const column = index - content.lastIndexOf("\n", index) - 1;
+          issues.push({
+            type: "verification",
+            severity: "low",
+            category: "unused-variable",
+            title: "Unused variable",
+            description: `Variable '${name}' is defined but never used`,
+            file: filePath,
+            line,
+            column,
+            codeSnippet: `let ${name}`,
+            fixable: true,
+            suggestion: `Remove unused variable '${name}'`,
+            confidence: 0.8
+          });
+        }
       }
     }
     return issues;
@@ -1061,11 +1073,18 @@ var FileProcessor = class {
    */
   globToRegex(glob) {
     let regex = glob;
-    regex = regex.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-    regex = regex.replace(/\*\*/g, ".*");
-    regex = regex.replace(/\*/g, "[^/]*");
-    regex = regex.replace(/\?/g, "[^/]");
-    regex = regex.replace(/\{([^}]+)\}/g, "(?:$1)");
+    regex = regex.replace(/\*\*/g, "__DOUBLE_STAR__");
+    regex = regex.replace(/\*/g, "__STAR__");
+    regex = regex.replace(/\?/g, "__QUESTION__");
+    regex = regex.replace(/\{([^}]+)\}/g, "__ALT_START__$1__ALT_END__");
+    regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, "\\$&");
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
+      const alternatives = content.split(",").map((a) => a.trim()).join("|");
+      return `(?:${alternatives})`;
+    });
+    regex = regex.replace(/__DOUBLE_STAR__/g, ".*");
+    regex = regex.replace(/__STAR__/g, "[^/]*");
+    regex = regex.replace(/__QUESTION__/g, "[^/]");
     return `^${regex}$`;
   }
   /**
@@ -1214,8 +1233,8 @@ var FileProcessor = class {
   async createBackup(filePaths, backupDir) {
     const backupFiles = [];
     try {
-      const { mkdir: mkdir4 } = await import("fs/promises");
-      await mkdir4(backupDir, { recursive: true });
+      const { mkdir: mkdir3 } = await import("fs/promises");
+      await mkdir3(backupDir, { recursive: true });
     } catch (error) {
     }
     for (const filePath of filePaths) {
@@ -1573,6 +1592,11 @@ var AIRefactor = class {
    */
   async analyze(path, config) {
     const finalConfig = { ...this.config, ...config };
+    try {
+      await (0, import_promises4.stat)(path);
+    } catch {
+      throw new Error(`Analysis failed: Path '${path}' does not exist`);
+    }
     const files = await this.fileProcessor.findFiles(path);
     const issues = [];
     const warnings = [];
@@ -1943,292 +1967,30 @@ var AIRefactor = class {
 };
 
 // src/index.ts
+var createRefactor = (config) => {
+  return new AIRefactor(config);
+};
 var aiRefactor = new AIRefactor();
-
-// src/simple-cli.ts
-function parseArgs(args) {
-  const result = {
-    command: "",
-    options: {}
-  };
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg.startsWith("--")) {
-      if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        const key = arg.slice(2);
-        const value = args[i + 1];
-        result.options[key] = value;
-        i++;
-      } else {
-        const key = arg.slice(2);
-        result.options[key] = true;
-      }
-    } else if (arg.startsWith("-")) {
-      if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
-        const key = arg.slice(1);
-        const value = args[i + 1];
-        result.options[key] = value;
-        i++;
-      } else {
-        const key = arg.slice(1);
-        result.options[key] = true;
-      }
-    } else if (!result.command) {
-      result.command = arg;
-    } else if (!result.path) {
-      result.path = arg;
-    } else {
-      if (!result.options._) {
-        result.options._ = [];
-      }
-      result.options._.push(arg);
-    }
-  }
-  return result;
-}
-async function buildConfig(options) {
-  const config = {};
-  if (options.pattern) {
-    config.patterns = Array.isArray(options.pattern) ? options.pattern : [options.pattern];
-  }
-  if (options.ignore) {
-    config.ignore = Array.isArray(options.ignore) ? options.ignore : [options.ignore];
-  }
-  if (options.depth) {
-    config.depth = parseInt(options.depth);
-  }
-  if (options.maxFiles) {
-    config.maxFiles = parseInt(options.maxFiles);
-  }
-  if (options.outputFormat) {
-    config.outputFormat = options.outputFormat;
-  }
-  if (options.aiProvider) {
-    config.aiProvider = options.aiProvider;
-  }
-  if (options.model) {
-    config.model = options.model;
-  }
-  if (options.config) {
-    try {
-      const configContent = await (0, import_promises5.readFile)(options.config, "utf-8");
-      const fileConfig = JSON.parse(configContent);
-      Object.assign(config, fileConfig);
-    } catch (error) {
-      console.error(`Warning: Could not read config file ${options.config}:`, error);
-    }
-  }
-  return config;
-}
-async function main() {
-  const args = process.argv.slice(2);
-  if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
-    showHelp();
-    return;
-  }
-  if (args[0] === "--version" || args[0] === "-v") {
-    console.log("ai-refactor-x 1.0.0");
-    return;
-  }
-  const parsed = parseArgs(args);
-  try {
-    switch (parsed.command) {
-      case "analyze":
-        await handleAnalyze(parsed.path, parsed.options);
-        break;
-      case "suggest":
-        await handleSuggest(parsed.path, parsed.options);
-        break;
-      case "refactor":
-        await handleRefactor(parsed.path, parsed.options);
-        break;
-      case "fix":
-        await handleFix(parsed.path, parsed.options);
-        break;
-      case "info":
-        await handleInfo(parsed.path, parsed.options);
-        break;
-      default:
-        console.error(`Unknown command: ${parsed.command}`);
-        showHelp();
-        process.exit(1);
-    }
-  } catch (error) {
-    console.error("Error:", error);
-    process.exit(1);
-  }
-}
-async function handleAnalyze(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for analyze command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Analyzing: ${path}`);
-    if (options.pattern) console.log(`Pattern: ${options.pattern}`);
-    if (options.ignore) console.log(`Ignore: ${options.ignore}`);
-  }
-  const result = await aiRefactor2.analyze(path, config);
-  if (options.saveReport) {
-    await (0, import_promises5.writeFile)(options.saveReport, JSON.stringify(result, null, 2));
-    console.log(`Report saved to: ${options.saveReport}`);
-  }
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else if (options.outputFormat === "markdown") {
-    console.log(aiRefactor2.formatMarkdown(result));
-  } else {
-    console.log(aiRefactor2.formatConsole(result));
-  }
-}
-async function handleSuggest(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for suggest command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Generating suggestions for: ${path}`);
-  }
-  const result = await aiRefactor2.suggest(path);
-  if (options.saveReport) {
-    await (0, import_promises5.writeFile)(options.saveReport, JSON.stringify(result, null, 2));
-    console.log(`Suggestions saved to: ${options.saveReport}`);
-  }
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatSuggestions(result));
-  }
-}
-async function handleRefactor(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for refactor command");
-    process.exit(1);
-  }
-  const refactorOptions = {
-    fix: options.fix || false,
-    interactive: options.interactive || false,
-    backup: options.backup || false,
-    dryRun: options.dryRun || false,
-    output: options.output || "",
-    verbose: options.verbose || false,
-    yes: options.yes || false
-  };
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Refactoring: ${path}`);
-    if (refactorOptions.dryRun) console.log("Dry run mode - no changes will be made");
-    if (refactorOptions.backup) console.log("Backup will be created");
-  }
-  const result = await aiRefactor2.refactor(path, refactorOptions);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatRefactor(result));
-  }
-}
-async function handleFix(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for fix command");
-    process.exit(1);
-  }
-  const refactorOptions = {
-    fix: true,
-    interactive: options.interactive || false,
-    backup: options.backup || false,
-    dryRun: options.dryRun || false,
-    output: options.output || "",
-    verbose: options.verbose || false,
-    yes: options.yes || false
-  };
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Fixing: ${path}`);
-    if (refactorOptions.dryRun) console.log("Dry run mode - no changes will be made");
-    if (refactorOptions.backup) console.log("Backup will be created");
-  }
-  const result = await aiRefactor2.fix(path);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatFix(result));
-  }
-}
-async function handleInfo(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for info command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Getting info for: ${path}`);
-  }
-  const result = await aiRefactor2.analyze(path);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else if (options.verbose) {
-    console.log(aiRefactor2.formatVerboseInfo(result));
-  } else {
-    console.log(aiRefactor2.formatInfo(result));
-  }
-}
-function showHelp() {
-  console.log(`
-ai-refactor-x - Zero-dependency AI-powered code refactoring tool
-
-Usage: ai-refactor-x <command> [path] [options]
-
-Commands:
-  analyze <path>        Analyze code and identify issues
-  suggest <path>        Generate refactoring suggestions
-  refactor <path>       Apply refactoring fixes
-  fix <path>            Quick fix command
-  info <path>           Get codebase information
-
-Global Options:
-  -p, --pattern <pattern>     File pattern to analyze (can be used multiple times)
-  -i, --ignore <pattern>      Pattern to ignore (can be used multiple times)
-  -d, --depth <number>        Maximum directory depth to analyze
-  -m, --max-files <number>    Maximum number of files to analyze
-  --output-format <format>   Output format (console|json|markdown)
-  --ai-provider <provider>   AI provider (openai|anthropic|local)
-  --model <model>            AI model to use
-  --output <file>            Output file to save report
-  --config <file>            Configuration file path
-  -v, --verbose              Verbose output
-  --dry-run                  Show what would be fixed without making changes
-
-Analyze Options:
-  --fixable                 Only show fixable issues
-  --severity <level>        Filter by severity (critical|high|medium|low)
-  --category <category>     Filter by category
-  --save-report <file>      Save analysis report to file
-
-Refactor Options:
-  --fix                    Apply fixes automatically
-  --interactive            Interactive mode with confirmation
-  --backup                 Create backup before making changes
-  --yes                    Auto-confirm all prompts
-
-Examples:
-  ai-refactor-x analyze ./src --format json --save-report report.json
-  ai-refactor-x refactor ./src --fix --dry-run --verbose
-  ai-refactor-x suggest ./src --output suggestions.json
-  ai-refactor-x fix ./src --backup --interactive
-  ai-refactor-x info ./src --verbose
-
-For more information, see: https://github.com/sulthonzh/ai-refactor-x
-`);
-}
-main().catch((error) => {
-  console.error("Error:", error);
-  process.exit(1);
+var analyze = async (path, config) => {
+  return aiRefactor.analyze(path, config);
+};
+var refactor = async (path, options) => {
+  return aiRefactor.refactor(path, options);
+};
+var fix = async (path, issues) => {
+  return aiRefactor.fix(path, issues);
+};
+var suggest = async (path, issues) => {
+  return aiRefactor.suggest(path, issues);
+};
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  AIRefactor,
+  aiRefactor,
+  analyze,
+  createRefactor,
+  fix,
+  refactor,
+  suggest
 });
-//# sourceMappingURL=simple-cli.cjs.map
+//# sourceMappingURL=index.cjs.map

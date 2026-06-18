@@ -393,44 +393,43 @@ export class AIAnalyzer {
   private async findUnusedVariables(content: string, filePath: string): Promise<CodeIssue[]> {
     const issues: CodeIssue[] = [];
     
-    // This is a simplified implementation - in a real implementation,
-    // you'd want to use a proper parser like acorn or TypeScript compiler
-    const variableMatches = content.matchAll(/(?:let|const|var)\s+(\w+)/g);
-    const definedVars = new Set<string>();
-    const usedVars = new Set<string>();
+    // Collect variable declarations and their positions
+    const declarationRegex = /(?:let|const|var)\s+(\w+)/g;
+    const declarations: Array<{ name: string; index: number }> = [];
     
-    for (const match of variableMatches) {
-      const varName = match[1];
-      // Skip if it's likely a function parameter or already in used set
-      if (!/\w+\s*\([^)]*\)\s*\{/.test(content.substring(0, match.index))) {
-        definedVars.add(varName);
-      }
+    for (const match of content.matchAll(declarationRegex)) {
+      declarations.push({ name: match[1], index: match.index! });
     }
     
-    // Find variable usage (simplified)
-    const usageMatches = content.matchAll(/\b(\w+)\b/g);
-    for (const match of usageMatches) {
-      usedVars.add(match[1]);
-    }
-    
-    // Find unused variables
-    for (const varName of definedVars) {
-      if (!usedVars.has(varName)) {
-        const line = content.substring(0, content.indexOf(varName, content.search(varName))).split('\n').length;
-        issues.push({
-          type: 'verification',
-          severity: 'low',
-          category: 'unused-variable',
-          title: 'Unused variable',
-          description: `Variable '${varName}' is defined but never used`,
-          file: filePath,
-          line,
-          column: 0,
-          codeSnippet: `const ${varName}`,
-          fixable: true,
-          suggestion: `Remove unused variable '${varName}'`,
-          confidence: 0.8
-        });
+    // For each declared variable, check if it's used anywhere else
+    for (const decl of declarations) {
+      const { name, index } = decl;
+      
+      // Look for the variable name AFTER the declaration position
+      const usageAfterDecl = content.substring(index + name.length).matchAll(new RegExp(`\\b${name}\\b`, 'g'));
+      
+      if (usageAfterDecl) {
+        const usages = Array.from(usageAfterDecl);
+        if (usages.length === 0) {
+          // Variable is unused
+          const line = content.substring(0, index).split('\n').length + 1;
+          const column = index - content.lastIndexOf('\n', index) - 1;
+          
+          issues.push({
+            type: 'verification',
+            severity: 'low',
+            category: 'unused-variable',
+            title: 'Unused variable',
+            description: `Variable '${name}' is defined but never used`,
+            file: filePath,
+            line,
+            column,
+            codeSnippet: `let ${name}`,
+            fixable: true,
+            suggestion: `Remove unused variable '${name}'`,
+            confidence: 0.8
+          });
+        }
       }
     }
     

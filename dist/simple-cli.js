@@ -4,7 +4,7 @@
 import { readFile as readFile5, writeFile as writeFile3 } from "fs/promises";
 
 // src/AIRefactor.ts
-import { writeFile as writeFile2 } from "fs/promises";
+import { writeFile as writeFile2, stat as stat3 } from "fs/promises";
 import { exec as exec2 } from "child_process";
 import { promisify as promisify2 } from "util";
 
@@ -503,36 +503,34 @@ var AIAnalyzer = class {
    */
   async findUnusedVariables(content, filePath) {
     const issues = [];
-    const variableMatches = content.matchAll(/(?:let|const|var)\s+(\w+)/g);
-    const definedVars = /* @__PURE__ */ new Set();
-    const usedVars = /* @__PURE__ */ new Set();
-    for (const match of variableMatches) {
-      const varName = match[1];
-      if (!/\w+\s*\([^)]*\)\s*\{/.test(content.substring(0, match.index))) {
-        definedVars.add(varName);
-      }
+    const declarationRegex = /(?:let|const|var)\s+(\w+)/g;
+    const declarations = [];
+    for (const match of content.matchAll(declarationRegex)) {
+      declarations.push({ name: match[1], index: match.index });
     }
-    const usageMatches = content.matchAll(/\b(\w+)\b/g);
-    for (const match of usageMatches) {
-      usedVars.add(match[1]);
-    }
-    for (const varName of definedVars) {
-      if (!usedVars.has(varName)) {
-        const line = content.substring(0, content.indexOf(varName, content.search(varName))).split("\n").length;
-        issues.push({
-          type: "verification",
-          severity: "low",
-          category: "unused-variable",
-          title: "Unused variable",
-          description: `Variable '${varName}' is defined but never used`,
-          file: filePath,
-          line,
-          column: 0,
-          codeSnippet: `const ${varName}`,
-          fixable: true,
-          suggestion: `Remove unused variable '${varName}'`,
-          confidence: 0.8
-        });
+    for (const decl of declarations) {
+      const { name, index } = decl;
+      const usageAfterDecl = content.substring(index + name.length).matchAll(new RegExp(`\\b${name}\\b`, "g"));
+      if (usageAfterDecl) {
+        const usages = Array.from(usageAfterDecl);
+        if (usages.length === 0) {
+          const line = content.substring(0, index).split("\n").length + 1;
+          const column = index - content.lastIndexOf("\n", index) - 1;
+          issues.push({
+            type: "verification",
+            severity: "low",
+            category: "unused-variable",
+            title: "Unused variable",
+            description: `Variable '${name}' is defined but never used`,
+            file: filePath,
+            line,
+            column,
+            codeSnippet: `let ${name}`,
+            fixable: true,
+            suggestion: `Remove unused variable '${name}'`,
+            confidence: 0.8
+          });
+        }
       }
     }
     return issues;
@@ -1038,11 +1036,18 @@ var FileProcessor = class {
    */
   globToRegex(glob) {
     let regex = glob;
-    regex = regex.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-    regex = regex.replace(/\*\*/g, ".*");
-    regex = regex.replace(/\*/g, "[^/]*");
-    regex = regex.replace(/\?/g, "[^/]");
-    regex = regex.replace(/\{([^}]+)\}/g, "(?:$1)");
+    regex = regex.replace(/\*\*/g, "__DOUBLE_STAR__");
+    regex = regex.replace(/\*/g, "__STAR__");
+    regex = regex.replace(/\?/g, "__QUESTION__");
+    regex = regex.replace(/\{([^}]+)\}/g, "__ALT_START__$1__ALT_END__");
+    regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, "\\$&");
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
+      const alternatives = content.split(",").map((a) => a.trim()).join("|");
+      return `(?:${alternatives})`;
+    });
+    regex = regex.replace(/__DOUBLE_STAR__/g, ".*");
+    regex = regex.replace(/__STAR__/g, "[^/]*");
+    regex = regex.replace(/__QUESTION__/g, "[^/]");
     return `^${regex}$`;
   }
   /**
@@ -1550,6 +1555,11 @@ var AIRefactor = class {
    */
   async analyze(path, config) {
     const finalConfig = { ...this.config, ...config };
+    try {
+      await stat3(path);
+    } catch {
+      throw new Error(`Analysis failed: Path '${path}' does not exist`);
+    }
     const files = await this.fileProcessor.findFiles(path);
     const issues = [];
     const warnings = [];
@@ -1923,6 +1933,14 @@ var AIRefactor = class {
 var aiRefactor = new AIRefactor();
 
 // src/simple-cli.ts
+function kebabToCamel(str) {
+  return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+function parseValue(val) {
+  if (val === "true") return true;
+  if (val === "false") return false;
+  return val;
+}
 function parseArgs(args) {
   const result = {
     command: "",
@@ -1931,34 +1949,31 @@ function parseArgs(args) {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     if (arg.startsWith("--")) {
-      if (i + 1 < args.length && !args[i + 1].startsWith("--")) {
-        const key = arg.slice(2);
-        const value = args[i + 1];
-        result.options[key] = value;
+      const equalIdx = arg.indexOf("=");
+      if (equalIdx > -1) {
+        const key = kebabToCamel(arg.slice(2, equalIdx));
+        result.options[key] = parseValue(arg.slice(equalIdx + 1));
+      } else if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
+        const key = kebabToCamel(arg.slice(2));
+        result.options[key] = args[i + 1];
         i++;
       } else {
-        const key = arg.slice(2);
+        const key = kebabToCamel(arg.slice(2));
         result.options[key] = true;
       }
-    } else if (arg.startsWith("-")) {
+    } else if (arg.startsWith("-") && arg.length > 1) {
       if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
-        const key = arg.slice(1);
-        const value = args[i + 1];
-        result.options[key] = value;
+        const key = kebabToCamel(arg.slice(1));
+        result.options[key] = args[i + 1];
         i++;
       } else {
-        const key = arg.slice(1);
+        const key = kebabToCamel(arg.slice(1));
         result.options[key] = true;
       }
     } else if (!result.command) {
       result.command = arg;
     } else if (!result.path) {
       result.path = arg;
-    } else {
-      if (!result.options._) {
-        result.options._ = [];
-      }
-      result.options._.push(arg);
     }
   }
   return result;
@@ -1992,10 +2007,211 @@ async function buildConfig(options) {
       const fileConfig = JSON.parse(configContent);
       Object.assign(config, fileConfig);
     } catch (error) {
-      console.error(`Warning: Could not read config file ${options.config}:`, error);
+      console.error(`Warning: Could not read config file ${options.config}: ${error.message}`);
     }
   }
   return config;
+}
+async function handleAnalyze(path, options) {
+  if (!path) {
+    console.error("Analysis failed: Path is required");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  if (options.verbose && format !== "json") {
+    console.error(`Analyzing: ${path}`);
+  }
+  let result = await aiRefactor2.analyze(path, config);
+  if (options.severity) {
+    result.issues = result.issues.filter((issue) => issue.severity === options.severity);
+  }
+  if (options.category) {
+    result.issues = result.issues.filter((issue) => issue.category === options.category);
+  }
+  if (options.fixable) {
+    result.issues = result.issues.filter((issue) => issue.fixable);
+  }
+  if (options.saveReport) {
+    const report = format === "json" ? JSON.stringify(result, null, 2) : aiRefactor2.formatConsole(result);
+    await writeFile3(options.saveReport, report);
+    if (format !== "json") {
+      console.log(`Report saved to: ${options.saveReport}`);
+    }
+  }
+  if (format === "json") {
+    console.log(JSON.stringify(result, null, 2));
+  } else if (format === "markdown") {
+    console.log(aiRefactor2.formatMarkdown(result));
+  } else {
+    if (result.issues.length === 0) {
+      console.log("\u2705 No issues found!");
+    } else {
+      console.log(aiRefactor2.formatConsole(result));
+    }
+  }
+}
+async function handleSuggest(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for suggest command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  const savePath = options.save || options.saveReport;
+  if (options.verbose && format !== "json") {
+    console.error(`Generating suggestions for: ${path}`);
+  }
+  const suggestions = await aiRefactor2.suggest(path);
+  const report = {
+    suggestions: suggestions.map((s) => ({
+      id: s.id,
+      title: s.issue.title,
+      file: s.issue.file,
+      line: s.issue.line,
+      category: s.issue.category,
+      severity: s.issue.severity,
+      confidence: s.confidence,
+      savings: s.estimatedSavings,
+      explanation: s.explanation,
+      beforeCode: s.beforeCode,
+      afterCode: s.afterCode
+    })),
+    total: suggestions.length,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (format === "json") {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(aiRefactor2.formatSuggestions(suggestions));
+  }
+  if (savePath) {
+    await writeFile3(savePath, JSON.stringify(report, null, 2));
+    if (format !== "json") {
+      console.log(`Suggestions saved to: ${savePath}`);
+    }
+  }
+}
+async function handleRefactor(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for refactor command");
+    process.exit(1);
+  }
+  const refactorOptions = {
+    fix: options.fix || false,
+    interactive: options.interactive || false,
+    backup: options.backup !== void 0 ? options.backup : false,
+    dryRun: options.dryRun !== void 0 ? options.dryRun : false,
+    output: options.output || "",
+    verbose: options.verbose || false,
+    yes: options.yes || false
+  };
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  if (options.verbose && format !== "json") {
+    console.error(`Refactoring: ${path}`);
+  }
+  if (refactorOptions.dryRun) {
+    const result2 = await aiRefactor2.analyze(path, config);
+    console.log("\u{1F4CB} Summary:");
+    console.log(`Files analyzed: ${result2.totalFiles}`);
+    console.log(`Issues found: ${result2.summary.totalIssues}`);
+    console.log(`Fixable issues: ${result2.summary.fixableIssues}`);
+    console.log(`Potential savings: ${result2.summary.estimatedSavings.lines} lines (${result2.summary.estimatedSavings.percentage}%)`);
+    return;
+  }
+  if (refactorOptions.fix) {
+    const result2 = await aiRefactor2.refactor(path, refactorOptions);
+    if (format === "json") {
+      console.log(JSON.stringify(result2, null, 2));
+    } else {
+      console.log("\u2705 Refactoring complete!");
+      console.log(`- Fixed ${result2.summary.fixableIssues} issues`);
+      console.log(`- Saved ${result2.summary.estimatedSavings.lines} lines`);
+      console.log(`- Time saved: ${result2.summary.estimatedTime}`);
+    }
+    return;
+  }
+  const result = await aiRefactor2.analyze(path, config);
+  console.log("\u{1F4CB} Summary:");
+  console.log(`Files analyzed: ${result.totalFiles}`);
+  console.log(`Issues found: ${result.summary.totalIssues}`);
+}
+async function handleFix(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for fix command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const result = await aiRefactor2.fix(path);
+  console.log("\u2705 Fix complete!");
+  console.log(`- Fixed ${result.summary.fixableIssues} issues`);
+  console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
+}
+async function handleInfo(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for info command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  const result = await aiRefactor2.analyze(path);
+  if (format === "json") {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log("\u{1F4CA} Codebase Information:");
+    console.log(`Files analyzed: ${result.totalFiles}`);
+    console.log(`Total issues: ${result.summary.totalIssues}`);
+    console.log(`Fixable issues: ${result.summary.fixableIssues}`);
+    console.log(`Estimated time to fix: ${result.summary.estimatedTime}`);
+    console.log(`Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
+    const categories = {};
+    result.issues.forEach((issue) => {
+      categories[issue.category] = (categories[issue.category] || 0) + 1;
+    });
+    console.log("\n\u{1F4C8} Issues by Category:");
+    Object.entries(categories).sort(([, a], [, b]) => b - a).forEach(([category, count]) => {
+      console.log(`  ${category}: ${count}`);
+    });
+  }
+}
+function showHelp() {
+  console.log(`
+ai-refactor-x - Zero-dependency AI-powered code refactoring tool
+
+Usage: ai-refactor-x <command> [path] [options]
+
+Commands:
+  analyze <path>        Analyze code and identify issues
+  suggest <path>        Generate refactoring suggestions
+  refactor <path>       Apply refactoring fixes
+  fix <path>            Quick fix command
+  info <path>           Get codebase information
+
+Options:
+  --format <format>         Output format (console|json|markdown)
+  --output-format <format>  Alias for --format
+  --severity <level>        Filter by severity (critical|high|medium|low)
+  --category <category>     Filter by category
+  --save <file>             Save suggestions to file
+  --save-report <file>      Save analysis report to file
+  --fix                     Apply fixes automatically
+  --dry-run                 Show what would be fixed without changes
+  --backup                  Create backup before changes
+  --config <file>           Configuration file path
+  -v, --verbose             Verbose output
+
+Examples:
+  ai-refactor-x analyze ./src --format json
+  ai-refactor-x refactor ./src --fix --dry-run
+  ai-refactor-x suggest ./src --save suggestions.json
+  ai-refactor-x info ./src
+`);
 }
 async function main() {
   const args = process.argv.slice(2);
@@ -2031,181 +2247,12 @@ async function main() {
         process.exit(1);
     }
   } catch (error) {
-    console.error("Error:", error);
+    console.error(`Command failed: ${error.message}`);
     process.exit(1);
   }
-}
-async function handleAnalyze(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for analyze command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Analyzing: ${path}`);
-    if (options.pattern) console.log(`Pattern: ${options.pattern}`);
-    if (options.ignore) console.log(`Ignore: ${options.ignore}`);
-  }
-  const result = await aiRefactor2.analyze(path, config);
-  if (options.saveReport) {
-    await writeFile3(options.saveReport, JSON.stringify(result, null, 2));
-    console.log(`Report saved to: ${options.saveReport}`);
-  }
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else if (options.outputFormat === "markdown") {
-    console.log(aiRefactor2.formatMarkdown(result));
-  } else {
-    console.log(aiRefactor2.formatConsole(result));
-  }
-}
-async function handleSuggest(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for suggest command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Generating suggestions for: ${path}`);
-  }
-  const result = await aiRefactor2.suggest(path);
-  if (options.saveReport) {
-    await writeFile3(options.saveReport, JSON.stringify(result, null, 2));
-    console.log(`Suggestions saved to: ${options.saveReport}`);
-  }
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatSuggestions(result));
-  }
-}
-async function handleRefactor(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for refactor command");
-    process.exit(1);
-  }
-  const refactorOptions = {
-    fix: options.fix || false,
-    interactive: options.interactive || false,
-    backup: options.backup || false,
-    dryRun: options.dryRun || false,
-    output: options.output || "",
-    verbose: options.verbose || false,
-    yes: options.yes || false
-  };
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Refactoring: ${path}`);
-    if (refactorOptions.dryRun) console.log("Dry run mode - no changes will be made");
-    if (refactorOptions.backup) console.log("Backup will be created");
-  }
-  const result = await aiRefactor2.refactor(path, refactorOptions);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatRefactor(result));
-  }
-}
-async function handleFix(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for fix command");
-    process.exit(1);
-  }
-  const refactorOptions = {
-    fix: true,
-    interactive: options.interactive || false,
-    backup: options.backup || false,
-    dryRun: options.dryRun || false,
-    output: options.output || "",
-    verbose: options.verbose || false,
-    yes: options.yes || false
-  };
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Fixing: ${path}`);
-    if (refactorOptions.dryRun) console.log("Dry run mode - no changes will be made");
-    if (refactorOptions.backup) console.log("Backup will be created");
-  }
-  const result = await aiRefactor2.fix(path);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else {
-    console.log(aiRefactor2.formatFix(result));
-  }
-}
-async function handleInfo(path, options) {
-  if (!path) {
-    console.error("Error: Path is required for info command");
-    process.exit(1);
-  }
-  const config = await buildConfig(options);
-  const aiRefactor2 = new AIRefactor(config);
-  if (options.verbose) {
-    console.log(`Getting info for: ${path}`);
-  }
-  const result = await aiRefactor2.analyze(path);
-  if (options.outputFormat === "json") {
-    console.log(JSON.stringify(result, null, 2));
-  } else if (options.verbose) {
-    console.log(aiRefactor2.formatVerboseInfo(result));
-  } else {
-    console.log(aiRefactor2.formatInfo(result));
-  }
-}
-function showHelp() {
-  console.log(`
-ai-refactor-x - Zero-dependency AI-powered code refactoring tool
-
-Usage: ai-refactor-x <command> [path] [options]
-
-Commands:
-  analyze <path>        Analyze code and identify issues
-  suggest <path>        Generate refactoring suggestions
-  refactor <path>       Apply refactoring fixes
-  fix <path>            Quick fix command
-  info <path>           Get codebase information
-
-Global Options:
-  -p, --pattern <pattern>     File pattern to analyze (can be used multiple times)
-  -i, --ignore <pattern>      Pattern to ignore (can be used multiple times)
-  -d, --depth <number>        Maximum directory depth to analyze
-  -m, --max-files <number>    Maximum number of files to analyze
-  --output-format <format>   Output format (console|json|markdown)
-  --ai-provider <provider>   AI provider (openai|anthropic|local)
-  --model <model>            AI model to use
-  --output <file>            Output file to save report
-  --config <file>            Configuration file path
-  -v, --verbose              Verbose output
-  --dry-run                  Show what would be fixed without making changes
-
-Analyze Options:
-  --fixable                 Only show fixable issues
-  --severity <level>        Filter by severity (critical|high|medium|low)
-  --category <category>     Filter by category
-  --save-report <file>      Save analysis report to file
-
-Refactor Options:
-  --fix                    Apply fixes automatically
-  --interactive            Interactive mode with confirmation
-  --backup                 Create backup before making changes
-  --yes                    Auto-confirm all prompts
-
-Examples:
-  ai-refactor-x analyze ./src --format json --save-report report.json
-  ai-refactor-x refactor ./src --fix --dry-run --verbose
-  ai-refactor-x suggest ./src --output suggestions.json
-  ai-refactor-x fix ./src --backup --interactive
-  ai-refactor-x info ./src --verbose
-
-For more information, see: https://github.com/sulthonzh/ai-refactor-x
-`);
 }
 main().catch((error) => {
-  console.error("Error:", error);
+  console.error(`Fatal: ${error.message}`);
   process.exit(1);
 });
 //# sourceMappingURL=simple-cli.js.map

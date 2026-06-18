@@ -47,6 +47,13 @@ export class AIRefactor {
   async analyze(path: string, config?: RefactorConfig): Promise<AnalysisResult> {
     const finalConfig = { ...this.config, ...config };
     
+    // Check if path exists
+    try {
+      await stat(path);
+    } catch {
+      throw new Error(`Analysis failed: Path '${path}' does not exist`);
+    }
+    
     // Find all relevant files
     const files = await this.fileProcessor.findFiles(path);
     

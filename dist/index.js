@@ -1,5 +1,5 @@
 // src/AIRefactor.ts
-import { writeFile as writeFile2 } from "fs/promises";
+import { writeFile as writeFile2, stat as stat3 } from "fs/promises";
 import { exec as exec2 } from "child_process";
 import { promisify as promisify2 } from "util";
 
@@ -498,36 +498,34 @@ var AIAnalyzer = class {
    */
   async findUnusedVariables(content, filePath) {
     const issues = [];
-    const variableMatches = content.matchAll(/(?:let|const|var)\s+(\w+)/g);
-    const definedVars = /* @__PURE__ */ new Set();
-    const usedVars = /* @__PURE__ */ new Set();
-    for (const match of variableMatches) {
-      const varName = match[1];
-      if (!/\w+\s*\([^)]*\)\s*\{/.test(content.substring(0, match.index))) {
-        definedVars.add(varName);
-      }
+    const declarationRegex = /(?:let|const|var)\s+(\w+)/g;
+    const declarations = [];
+    for (const match of content.matchAll(declarationRegex)) {
+      declarations.push({ name: match[1], index: match.index });
     }
-    const usageMatches = content.matchAll(/\b(\w+)\b/g);
-    for (const match of usageMatches) {
-      usedVars.add(match[1]);
-    }
-    for (const varName of definedVars) {
-      if (!usedVars.has(varName)) {
-        const line = content.substring(0, content.indexOf(varName, content.search(varName))).split("\n").length;
-        issues.push({
-          type: "verification",
-          severity: "low",
-          category: "unused-variable",
-          title: "Unused variable",
-          description: `Variable '${varName}' is defined but never used`,
-          file: filePath,
-          line,
-          column: 0,
-          codeSnippet: `const ${varName}`,
-          fixable: true,
-          suggestion: `Remove unused variable '${varName}'`,
-          confidence: 0.8
-        });
+    for (const decl of declarations) {
+      const { name, index } = decl;
+      const usageAfterDecl = content.substring(index + name.length).matchAll(new RegExp(`\\b${name}\\b`, "g"));
+      if (usageAfterDecl) {
+        const usages = Array.from(usageAfterDecl);
+        if (usages.length === 0) {
+          const line = content.substring(0, index).split("\n").length + 1;
+          const column = index - content.lastIndexOf("\n", index) - 1;
+          issues.push({
+            type: "verification",
+            severity: "low",
+            category: "unused-variable",
+            title: "Unused variable",
+            description: `Variable '${name}' is defined but never used`,
+            file: filePath,
+            line,
+            column,
+            codeSnippet: `let ${name}`,
+            fixable: true,
+            suggestion: `Remove unused variable '${name}'`,
+            confidence: 0.8
+          });
+        }
       }
     }
     return issues;
@@ -1033,11 +1031,18 @@ var FileProcessor = class {
    */
   globToRegex(glob) {
     let regex = glob;
-    regex = regex.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-    regex = regex.replace(/\*\*/g, ".*");
-    regex = regex.replace(/\*/g, "[^/]*");
-    regex = regex.replace(/\?/g, "[^/]");
-    regex = regex.replace(/\{([^}]+)\}/g, "(?:$1)");
+    regex = regex.replace(/\*\*/g, "__DOUBLE_STAR__");
+    regex = regex.replace(/\*/g, "__STAR__");
+    regex = regex.replace(/\?/g, "__QUESTION__");
+    regex = regex.replace(/\{([^}]+)\}/g, "__ALT_START__$1__ALT_END__");
+    regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, "\\$&");
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
+      const alternatives = content.split(",").map((a) => a.trim()).join("|");
+      return `(?:${alternatives})`;
+    });
+    regex = regex.replace(/__DOUBLE_STAR__/g, ".*");
+    regex = regex.replace(/__STAR__/g, "[^/]*");
+    regex = regex.replace(/__QUESTION__/g, "[^/]");
     return `^${regex}$`;
   }
   /**
@@ -1545,6 +1550,11 @@ var AIRefactor = class {
    */
   async analyze(path, config) {
     const finalConfig = { ...this.config, ...config };
+    try {
+      await stat3(path);
+    } catch {
+      throw new Error(`Analysis failed: Path '${path}' does not exist`);
+    }
     const files = await this.fileProcessor.findFiles(path);
     const issues = [];
     const warnings = [];

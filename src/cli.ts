@@ -42,29 +42,29 @@ program
   .option('--category <category>', 'Filter by category')
   .option('--format <format>', 'Output format (console|json|markdown)', 'console')
   .option('--save-report <file>', 'Save analysis report to file')
-  .action(async (path, options) => {
+  .action(async (path: string, options: Record<string, any>) => {
     try {
       const config = await buildConfig(options);
       const aiRefactor = new AIRefactor(config);
 
-      if (options.verbose) {
-        console.log('🔍 Analyzing:', path);
-        console.log('Configuration:', JSON.stringify(config, null, 2));
+      if (options.verbose && options.format !== 'json') {
+        console.error('🔍 Analyzing:', path);
+        console.error('Configuration:', JSON.stringify(config, null, 2));
       }
 
       const result = await aiRefactor.analyze(path, config);
-      
+
       // Filter results if requested
       if (options.fixable) {
         result.issues = result.issues.filter(issue => issue.fixable);
         result.suggestions = result.suggestions.filter(suggestion => suggestion.issue.fixable);
       }
-      
+
       if (options.severity) {
         result.issues = result.issues.filter(issue => issue.severity === options.severity);
         result.suggestions = result.suggestions.filter(suggestion => suggestion.issue.severity === options.severity);
       }
-      
+
       if (options.category) {
         result.issues = result.issues.filter(issue => issue.category === options.category);
         result.suggestions = result.suggestions.filter(suggestion => suggestion.issue.category === options.category);
@@ -74,7 +74,9 @@ program
       if (options.saveReport) {
         const report = formatReport(result, options.format);
         await writeFile(options.saveReport, report);
-        console.log(`📄 Report saved to: ${options.saveReport}`);
+        if (options.format !== 'json') {
+          console.log(`📄 Report saved to: ${options.saveReport}`);
+        }
       } else {
         outputResult(result, options.format, options.verbose);
       }
@@ -99,14 +101,14 @@ program
   .option('--dry-run', 'Show what would be fixed without making changes')
   .option('--yes', 'Auto-confirm all fixes')
   .option('--suggestions-only', 'Only show suggestions without applying')
-  .action(async (path, options) => {
+  .action(async (path: string, options: Record<string, any>) => {
     try {
       const config = await buildConfig(options);
       const aiRefactor = new AIRefactor(config);
 
-      if (options.verbose) {
-        console.log('🔧 Refactoring:', path);
-        console.log('Options:', JSON.stringify({
+      if (options.verbose && !process.env.JSON_OUTPUT_MODE) {
+        console.error('🔧 Refactoring:', path);
+        console.error('Options:', JSON.stringify({
           fix: options.fix,
           interactive: options.interactive,
           backup: options.backup,
@@ -119,56 +121,56 @@ program
       // Dry run mode
       if (options.dryRun || options.suggestionsOnly) {
         const result = await aiRefactor.analyze(path, config);
-        console.log('📋 Summary:');
-        console.log(`- Files analyzed: ${result.totalFiles}`);
-        console.log(`- Issues found: ${result.summary.totalIssues}`);
-        console.log(`- Fixable issues: ${result.summary.fixableIssues}`);
-        console.log(`- Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
-        
+        console.error('📋 Summary:');
+        console.error(`- Files analyzed: ${result.totalFiles}`);
+        console.error(`- Issues found: ${result.summary.totalIssues}`);
+        console.error(`- Fixable issues: ${result.summary.fixableIssues}`);
+        console.error(`- Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
+
         if (options.suggestionsOnly) {
-          console.log('\n💡 Suggestions:');
+          console.error('\n💡 Suggestions:');
           for (const suggestion of result.suggestions.slice(0, 5)) {
-            console.log(`- ${suggestion.issue.title} (${suggestion.issue.file}:${suggestion.issue.line})`);
-            console.log(`  ${suggestion.explanation}`);
-            console.log(`  Savings: ${suggestion.estimatedSavings.lines} lines`);
+            console.error(`- ${suggestion.issue.title} (${suggestion.issue.file}:${suggestion.issue.line})`);
+            console.error(`  ${suggestion.explanation}`);
+            console.error(`  Savings: ${suggestion.estimatedSavings.lines} lines`);
           }
           if (result.suggestions.length > 5) {
-            console.log(`... and ${result.suggestions.length - 5} more suggestions`);
+            console.error(`... and ${result.suggestions.length - 5} more suggestions`);
           }
         }
-        
+
         return;
       }
 
       // Interactive mode
       if (options.interactive) {
         const result = await aiRefactor.analyze(path, config);
-        
-        console.log('📋 Analysis complete:');
-        console.log(`Found ${result.summary.totalIssues} issues (${result.summary.fixableIssues} fixable)`);
-        
+
+        console.error('📋 Analysis complete:');
+        console.error(`Found ${result.summary.totalIssues} issues (${result.summary.fixableIssues} fixable)`);
+
         for (const suggestion of result.suggestions) {
-          console.log(`\n💡 ${suggestion.issue.title}`);
-          console.log(`   ${suggestion.explanation}`);
-          console.log(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
-          console.log(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
-          console.log(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
-          
+          console.error(`\n💡 ${suggestion.issue.title}`);
+          console.error(`   ${suggestion.explanation}`);
+          console.error(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
+          console.error(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
+          console.error(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
+
           if (!options.yes) {
             const answer = await prompt('Apply this fix? (y/N): ');
             if (answer.toLowerCase() !== 'y') {
               continue;
             }
           }
-          
+
           try {
             await aiRefactor.fix(path, [suggestion.issue]);
-            console.log(`✅ Applied fix: ${suggestion.issue.title}`);
+            console.error(`✅ Applied fix: ${suggestion.issue.title}`);
           } catch (error) {
             console.error(`❌ Failed to apply fix: ${(error as Error).message}`);
           }
         }
-        
+
         return;
       }
 
@@ -183,23 +185,23 @@ program
           output: '',
           yes: options.yes
         });
-        
-        console.log('✅ Refactoring complete!');
-        console.log(`- Fixed ${result.summary.fixableIssues} issues`);
-        console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
-        console.log(`- Time saved: ${result.summary.estimatedTime}`);
-        
+
+        console.error('✅ Refactoring complete!');
+        console.error(`- Fixed ${result.summary.fixableIssues} issues`);
+        console.error(`- Saved ${result.summary.estimatedSavings.lines} lines`);
+        console.error(`- Time saved: ${result.summary.estimatedTime}`);
+
         if (result.warnings.length > 0) {
-          console.log('\n⚠️ Warnings:');
+          console.error('\n⚠️ Warnings:');
           for (const warning of result.warnings) {
-            console.log(`- ${warning}`);
+            console.error(`- ${warning}`);
           }
         }
-        
+
         if (result.errors.length > 0) {
-          console.log('\n❌ Errors:');
+          console.error('\n❌ Errors:');
           for (const error of result.errors) {
-            console.log(`- ${error}`);
+            console.error(`- ${error}`);
           }
         }
       }
@@ -217,21 +219,21 @@ program
   .description('Quick fix command for issues')
   .option('--backup', 'Create backup before making changes', true)
   .option('--interactive', 'Interactive mode')
-  .action(async (path, options) => {
+  .action(async (path: string, options: Record<string, any>) => {
     try {
       const config = await buildConfig(options);
       const aiRefactor = new AIRefactor(config);
 
-      if (options.verbose) {
-        console.log('🔧 Quick fix:', path);
+      if (options.verbose && !process.env.JSON_OUTPUT_MODE) {
+        console.error('🔧 Quick fix:', path);
       }
 
       const result = await aiRefactor.fix(path);
-      
-      console.log('✅ Fix complete!');
-      console.log(`- Fixed ${result.summary.fixableIssues} issues`);
-      console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
-      console.log(`- Time saved: ${result.summary.estimatedTime}`);
+
+      console.error('✅ Fix complete!');
+      console.error(`- Fixed ${result.summary.fixableIssues} issues`);
+      console.error(`- Saved ${result.summary.estimatedSavings.lines} lines`);
+      console.error(`- Time saved: ${result.summary.estimatedTime}`);
 
     } catch (error) {
       console.error('❌ Fix failed:', (error as Error).message);
@@ -245,28 +247,50 @@ program
   .argument('<path>', 'Path to get suggestions for')
   .description('Get refactoring suggestions without applying them')
   .option('--save <file>', 'Save suggestions to file')
-  .action(async (path, options) => {
+  .option('--format <format>', 'Output format (console|json|markdown)', 'console')
+  .action(async (path: string, options: Record<string, any>) => {
     try {
       const config = await buildConfig(options);
       const aiRefactor = new AIRefactor(config);
 
-      if (options.verbose) {
-        console.log('💡 Getting suggestions for:', path);
+      if (options.verbose && options.format !== 'json') {
+        console.error('💡 Getting suggestions for:', path);
       }
 
       const suggestions = await aiRefactor.suggest(path);
-      
-      console.log('📋 Refactoring Suggestions:');
-      console.log(`Found ${suggestions.length} suggestions\n`);
-      
-      for (const suggestion of suggestions) {
-        console.log(`💡 ${suggestion.issue.title}`);
-        console.log(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
-        console.log(`   Category: ${suggestion.issue.category}`);
-        console.log(`   Severity: ${suggestion.issue.severity}`);
-        console.log(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
-        console.log(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
-        console.log(`   Explanation: ${suggestion.explanation}\n`);
+
+      if (options.format === 'json') {
+        const report = {
+          suggestions: suggestions.map(s => ({
+            id: s.id,
+            title: s.issue.title,
+            file: s.issue.file,
+            line: s.issue.line,
+            category: s.issue.category,
+            severity: s.issue.severity,
+            confidence: s.confidence,
+            savings: s.estimatedSavings,
+            explanation: s.explanation,
+            beforeCode: s.beforeCode,
+            afterCode: s.afterCode
+          })),
+          total: suggestions.length,
+          timestamp: new Date().toISOString()
+        };
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.error('📋 Refactoring Suggestions:');
+        console.error(`Found ${suggestions.length} suggestions\n`);
+
+        for (const suggestion of suggestions) {
+          console.error(`💡 ${suggestion.issue.title}`);
+          console.error(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
+          console.error(`   Category: ${suggestion.issue.category}`);
+          console.error(`   Severity: ${suggestion.issue.severity}`);
+          console.error(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
+          console.error(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
+          console.error(`   Explanation: ${suggestion.explanation}\n`);
+        }
       }
 
       if (options.save) {
@@ -287,9 +311,11 @@ program
           total: suggestions.length,
           timestamp: new Date().toISOString()
         };
-        
+
         await writeFile(options.save, JSON.stringify(report, null, 2));
-        console.log(`📄 Suggestions saved to: ${options.save}`);
+        if (options.format !== 'json') {
+          console.error(`📄 Suggestions saved to: ${options.save}`);
+        }
       }
 
     } catch (error) {
@@ -303,33 +329,37 @@ program
   .command('info')
   .argument('<path>', 'Path to get information about')
   .description('Get information about a codebase')
-  .action(async (path) => {
+  .option('--format <format>', 'Output format (console|json|markdown)', 'console')
+  .action(async (path: string, options: Record<string, any>) => {
     try {
-      const config = await buildConfig({});
+      const config = await buildConfig(options);
       const aiRefactor = new AIRefactor(config);
 
       const result = await aiRefactor.analyze(path, config);
-      
-      console.log('📊 Codebase Information:');
-      console.log(`Files analyzed: ${result.totalFiles}`);
-      console.log(`Total issues: ${result.summary.totalIssues}`);
-      console.log(`Fixable issues: ${result.summary.fixableIssues}`);
-      console.log(`Critical issues: ${result.summary.criticalIssues}`);
-      console.log(`Estimated time to fix: ${result.summary.estimatedTime}`);
-      console.log(`Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
 
-      // Show issues by category
-      const categories = result.issues.reduce((acc, issue) => {
-        acc[issue.category] = (acc[issue.category] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      if (options.format === 'json') {
+        console.log(JSON.stringify(result, null, 2));
+      } else {
+        console.error('📊 Codebase Information:');
+        console.error(`Files analyzed: ${result.totalFiles}`);
+        console.error(`Total issues: ${result.summary.totalIssues}`);
+        console.error(`Fixable issues: ${result.summary.fixableIssues}`);
+        console.error(`Critical issues: ${result.summary.criticalIssues}`);
+        console.error(`Estimated time to fix: ${result.summary.estimatedTime}`);
+        console.error(`Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
 
-      console.log('\n📈 Issues by Category:');
-      Object.entries(categories)
-        .sort(([,a], [,b]) => b - a)
-        .forEach(([category, count]) => {
-          console.log(`  ${category}: ${count}`);
-        });
+        const categories = result.issues.reduce((acc, issue) => {
+          acc[issue.category] = (acc[issue.category] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+
+        console.error('\n📈 Issues by Category:');
+        Object.entries(categories)
+          .sort(([,a], [,b]) => b - a)
+          .forEach(([category, count]) => {
+            console.error(`  ${category}: ${count}`);
+          });
+      }
 
     } catch (error) {
       console.error('❌ Failed to get info:', (error as Error).message);
@@ -350,7 +380,6 @@ async function buildConfig(options: any): Promise<RefactorConfig> {
     model: options.model || 'gpt-4'
   };
 
-  // Load config file if specified
   if (options.config) {
     try {
       const configData = await readFile(join(process.cwd(), options.config), 'utf-8');
@@ -406,22 +435,21 @@ function outputResult(result: any, format: string, verbose: boolean): void {
     return;
   }
 
-  // Console output
-  console.log(`📊 Analysis Complete!`);
-  console.log(`📁 Files analyzed: ${result.totalFiles}`);
-  console.log(`🔍 Issues found: ${result.summary.totalIssues}`);
-  console.log(`🔧 Fixable issues: ${result.summary.fixableIssues}`);
-  console.log(`🚀 Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
-  console.log(`⏱️  Estimated time: ${result.summary.estimatedTime}`);
+  console.error(`📊 Analysis Complete!`);
+  console.error(`📁 Files analyzed: ${result.totalFiles}`);
+  console.error(`🔍 Issues found: ${result.summary.totalIssues}`);
+  console.error(`🔧 Fixable issues: ${result.summary.fixableIssues}`);
+  console.error(`🚀 Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
+  console.error(`⏱️  Estimated time: ${result.summary.estimatedTime}`);
 
   if (result.warnings.length > 0 && verbose) {
-    console.log('\n⚠️ Warnings:');
-    result.warnings.forEach((warning: string) => console.log(`  ${warning}`));
+    console.error('\n⚠️ Warnings:');
+    result.warnings.forEach((warning: string) => console.error(`  ${warning}`));
   }
 
   if (result.errors.length > 0 && verbose) {
-    console.log('\n❌ Errors:');
-    result.errors.forEach((error: string) => console.log(`  ${error}`));
+    console.error('\n❌ Errors:');
+    result.errors.forEach((error: string) => console.error(`  ${error}`));
   }
 }
 
@@ -440,4 +468,4 @@ async function prompt(question: string): Promise<string> {
   });
 }
 
-program.parse();
+program.parse(process.argv);

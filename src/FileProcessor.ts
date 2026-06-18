@@ -170,14 +170,25 @@ export class FileProcessor {
   private globToRegex(glob: string): string {
     let regex = glob;
     
-    // Escape special regex characters except for glob special characters
-    regex = regex.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    // Replace glob special characters FIRST (before escaping)
+    regex = regex.replace(/\*\*/g, '__DOUBLE_STAR__'); // Mark **
+    regex = regex.replace(/\*/g, '__STAR__'); // Mark *
+    regex = regex.replace(/\?/g, '__QUESTION__'); // Mark ?
+    regex = regex.replace(/\{([^}]+)\}/g, '__ALT_START__$1__ALT_END__'); // Mark {,}
     
-    // Replace glob special characters
-    regex = regex.replace(/\*\*/g, '.*'); // Recursive
-    regex = regex.replace(/\*/g, '[^/]*'); // Wildcard
-    regex = regex.replace(/\?/g, '[^/]'); // Single character
-    regex = regex.replace(/\{([^}]+)\}/g, '(?:$1)'); // Alternatives
+    // Escape special regex characters EXCEPT for glob markers (the markers contain no regex specials)
+    regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, '\\$&');
+    
+    // Convert brace expansion {a,b,c} to (a|b|c)
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
+      const alternatives = content.split(',').map(a => a.trim()).join('|');
+      return `(?:${alternatives})`;
+    });
+    
+    // Restore glob markers as regex
+    regex = regex.replace(/__DOUBLE_STAR__/g, '.*');
+    regex = regex.replace(/__STAR__/g, '[^/]*');
+    regex = regex.replace(/__QUESTION__/g, '[^/]');
     
     // Ensure it matches the entire path
     return `^${regex}$`;

@@ -6,12 +6,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
-var __commonJS = (cb, mod) => function __require() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -29,848 +23,19 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/tsup/assets/cjs_shims.js
-var init_cjs_shims = __esm({
-  "node_modules/tsup/assets/cjs_shims.js"() {
-    "use strict";
-  }
-});
-
-// node_modules/commander/index.js
-var require_commander = __commonJS({
-  "node_modules/commander/index.js"(exports2, module2) {
-    "use strict";
-    init_cjs_shims();
-    var EventEmitter = require("events").EventEmitter;
-    var spawn = require("child_process").spawn;
-    var path = require("path");
-    var dirname3 = path.dirname;
-    var basename = path.basename;
-    var fs = require("fs");
-    require("util").inherits(Command2, EventEmitter);
-    exports2 = module2.exports = new Command2();
-    exports2.Command = Command2;
-    exports2.Option = Option;
-    function Option(flags, description) {
-      this.flags = flags;
-      this.required = flags.indexOf("<") >= 0;
-      this.optional = flags.indexOf("[") >= 0;
-      this.mandatory = false;
-      this.negate = flags.indexOf("-no-") !== -1;
-      flags = flags.split(/[ ,|]+/);
-      if (flags.length > 1 && !/^[[<]/.test(flags[1])) this.short = flags.shift();
-      this.long = flags.shift();
-      this.description = description || "";
-    }
-    Option.prototype.name = function() {
-      return this.long.replace(/^--/, "");
-    };
-    Option.prototype.attributeName = function() {
-      return camelcase(this.name().replace(/^no-/, ""));
-    };
-    Option.prototype.is = function(arg) {
-      return this.short === arg || this.long === arg;
-    };
-    var CommanderError = class extends Error {
-      /**
-       * Constructs the CommanderError class
-       * @param {Number} exitCode suggested exit code which could be used with process.exit
-       * @param {String} code an id string representing the error
-       * @param {String} message human-readable description of the error
-       * @constructor
-       */
-      constructor(exitCode, code, message) {
-        super(message);
-        Error.captureStackTrace(this, this.constructor);
-        this.name = this.constructor.name;
-        this.code = code;
-        this.exitCode = exitCode;
-      }
-    };
-    exports2.CommanderError = CommanderError;
-    function Command2(name) {
-      this.commands = [];
-      this.options = [];
-      this._execs = /* @__PURE__ */ new Set();
-      this._allowUnknownOption = false;
-      this._args = [];
-      this._name = name || "";
-      this._optionValues = {};
-      this._storeOptionsAsProperties = true;
-      this._passCommandToAction = true;
-      this._actionResults = [];
-      this._helpFlags = "-h, --help";
-      this._helpDescription = "output usage information";
-      this._helpShortFlag = "-h";
-      this._helpLongFlag = "--help";
-    }
-    Command2.prototype.command = function(nameAndArgs, actionOptsOrExecDesc, execOpts) {
-      var desc = actionOptsOrExecDesc;
-      var opts = execOpts;
-      if (typeof desc === "object" && desc !== null) {
-        opts = desc;
-        desc = null;
-      }
-      opts = opts || {};
-      var args = nameAndArgs.split(/ +/);
-      var cmd = new Command2(args.shift());
-      if (desc) {
-        cmd.description(desc);
-        this.executables = true;
-        this._execs.add(cmd._name);
-        if (opts.isDefault) this.defaultExecutable = cmd._name;
-      }
-      cmd._noHelp = !!opts.noHelp;
-      cmd._helpFlags = this._helpFlags;
-      cmd._helpDescription = this._helpDescription;
-      cmd._helpShortFlag = this._helpShortFlag;
-      cmd._helpLongFlag = this._helpLongFlag;
-      cmd._exitCallback = this._exitCallback;
-      cmd._storeOptionsAsProperties = this._storeOptionsAsProperties;
-      cmd._passCommandToAction = this._passCommandToAction;
-      cmd._executableFile = opts.executableFile;
-      this.commands.push(cmd);
-      cmd.parseExpectedArgs(args);
-      cmd.parent = this;
-      if (desc) return this;
-      return cmd;
-    };
-    Command2.prototype.arguments = function(desc) {
-      return this.parseExpectedArgs(desc.split(/ +/));
-    };
-    Command2.prototype.addImplicitHelpCommand = function() {
-      this.command("help [cmd]", "display help for [cmd]");
-    };
-    Command2.prototype.parseExpectedArgs = function(args) {
-      if (!args.length) return;
-      var self = this;
-      args.forEach(function(arg) {
-        var argDetails = {
-          required: false,
-          name: "",
-          variadic: false
-        };
-        switch (arg[0]) {
-          case "<":
-            argDetails.required = true;
-            argDetails.name = arg.slice(1, -1);
-            break;
-          case "[":
-            argDetails.name = arg.slice(1, -1);
-            break;
-        }
-        if (argDetails.name.length > 3 && argDetails.name.slice(-3) === "...") {
-          argDetails.variadic = true;
-          argDetails.name = argDetails.name.slice(0, -3);
-        }
-        if (argDetails.name) {
-          self._args.push(argDetails);
-        }
-      });
-      return this;
-    };
-    Command2.prototype.exitOverride = function(fn) {
-      if (fn) {
-        this._exitCallback = fn;
-      } else {
-        this._exitCallback = function(err) {
-          if (err.code !== "commander.executeSubCommandAsync") {
-            throw err;
-          } else {
-          }
-        };
-      }
-      return this;
-    };
-    Command2.prototype._exit = function(exitCode, code, message) {
-      if (this._exitCallback) {
-        this._exitCallback(new CommanderError(exitCode, code, message));
-      }
-      process.exit(exitCode);
-    };
-    Command2.prototype.action = function(fn) {
-      var self = this;
-      var listener = function(args, unknown) {
-        args = args || [];
-        unknown = unknown || [];
-        var parsed = self.parseOptions(unknown);
-        outputHelpIfRequested(self, parsed.unknown);
-        self._checkForMissingMandatoryOptions();
-        if (parsed.unknown.length > 0) {
-          self.unknownOption(parsed.unknown[0]);
-        }
-        if (parsed.args.length) args = parsed.args.concat(args);
-        self._args.forEach(function(arg, i) {
-          if (arg.required && args[i] == null) {
-            self.missingArgument(arg.name);
-          } else if (arg.variadic) {
-            if (i !== self._args.length - 1) {
-              self.variadicArgNotLast(arg.name);
-            }
-            args[i] = args.splice(i);
-          }
-        });
-        var expectedArgsCount = self._args.length;
-        var actionArgs = args.slice(0, expectedArgsCount);
-        if (self._passCommandToAction) {
-          actionArgs[expectedArgsCount] = self;
-        } else {
-          actionArgs[expectedArgsCount] = self.opts();
-        }
-        if (args.length > expectedArgsCount) {
-          actionArgs.push(args.slice(expectedArgsCount));
-        }
-        const actionResult = fn.apply(self, actionArgs);
-        let rootCommand = self;
-        while (rootCommand.parent) {
-          rootCommand = rootCommand.parent;
-        }
-        rootCommand._actionResults.push(actionResult);
-      };
-      var parent = this.parent || this;
-      var name = parent === this ? "*" : this._name;
-      parent.on("command:" + name, listener);
-      if (this._alias) parent.on("command:" + this._alias, listener);
-      return this;
-    };
-    Command2.prototype._optionEx = function(config, flags, description, fn, defaultValue) {
-      var self = this, option = new Option(flags, description), oname = option.name(), name = option.attributeName();
-      option.mandatory = !!config.mandatory;
-      if (typeof fn !== "function") {
-        if (fn instanceof RegExp) {
-          var regex = fn;
-          fn = function(val, def) {
-            var m = regex.exec(val);
-            return m ? m[0] : def;
-          };
-        } else {
-          defaultValue = fn;
-          fn = null;
-        }
-      }
-      if (option.negate || option.optional || option.required || typeof defaultValue === "boolean") {
-        if (option.negate) {
-          const positiveLongFlag = option.long.replace(/^--no-/, "--");
-          defaultValue = self.optionFor(positiveLongFlag) ? self._getOptionValue(name) : true;
-        }
-        if (defaultValue !== void 0) {
-          self._setOptionValue(name, defaultValue);
-          option.defaultValue = defaultValue;
-        }
-      }
-      this.options.push(option);
-      this.on("option:" + oname, function(val) {
-        if (val !== null && fn) {
-          val = fn(val, self._getOptionValue(name) === void 0 ? defaultValue : self._getOptionValue(name));
-        }
-        if (typeof self._getOptionValue(name) === "boolean" || typeof self._getOptionValue(name) === "undefined") {
-          if (val == null) {
-            self._setOptionValue(name, option.negate ? false : defaultValue || true);
-          } else {
-            self._setOptionValue(name, val);
-          }
-        } else if (val !== null) {
-          self._setOptionValue(name, option.negate ? false : val);
-        }
-      });
-      return this;
-    };
-    Command2.prototype.option = function(flags, description, fn, defaultValue) {
-      return this._optionEx({}, flags, description, fn, defaultValue);
-    };
-    Command2.prototype.requiredOption = function(flags, description, fn, defaultValue) {
-      return this._optionEx({ mandatory: true }, flags, description, fn, defaultValue);
-    };
-    Command2.prototype.allowUnknownOption = function(arg) {
-      this._allowUnknownOption = arguments.length === 0 || arg;
-      return this;
-    };
-    Command2.prototype.storeOptionsAsProperties = function(value) {
-      this._storeOptionsAsProperties = value === void 0 || value;
-      if (this.options.length) {
-        console.error("Commander usage error: call storeOptionsAsProperties before adding options");
-      }
-      return this;
-    };
-    Command2.prototype.passCommandToAction = function(value) {
-      this._passCommandToAction = value === void 0 || value;
-      return this;
-    };
-    Command2.prototype._setOptionValue = function(key, value) {
-      if (this._storeOptionsAsProperties) {
-        this[key] = value;
-      } else {
-        this._optionValues[key] = value;
-      }
-    };
-    Command2.prototype._getOptionValue = function(key) {
-      if (this._storeOptionsAsProperties) {
-        return this[key];
-      }
-      return this._optionValues[key];
-    };
-    Command2.prototype.parse = function(argv) {
-      if (this.executables) this.addImplicitHelpCommand();
-      this.rawArgs = argv;
-      this._name = this._name || basename(argv[1], ".js");
-      if (this.executables && argv.length < 3 && !this.defaultExecutable) {
-        argv.push(this._helpLongFlag);
-      }
-      var normalized = this.normalize(argv.slice(2));
-      var parsed = this.parseOptions(normalized);
-      var args = this.args = parsed.args;
-      var result = this.parseArgs(this.args, parsed.unknown);
-      if (args[0] === "help" && args.length === 1) this.help();
-      if (args[0] === "help") {
-        args[0] = args[1];
-        args[1] = this._helpLongFlag;
-      } else {
-        this._checkForMissingMandatoryOptions();
-      }
-      var name = result.args[0];
-      var subCommand = null;
-      if (name) {
-        subCommand = this.commands.find(function(command) {
-          return command._name === name;
-        });
-      }
-      if (!subCommand && name) {
-        subCommand = this.commands.find(function(command) {
-          return command.alias() === name;
-        });
-        if (subCommand) {
-          name = subCommand._name;
-          args[0] = name;
-        }
-      }
-      if (!subCommand && this.defaultExecutable) {
-        name = this.defaultExecutable;
-        args.unshift(name);
-        subCommand = this.commands.find(function(command) {
-          return command._name === name;
-        });
-      }
-      if (this._execs.has(name)) {
-        return this.executeSubCommand(argv, args, parsed.unknown, subCommand ? subCommand._executableFile : void 0);
-      }
-      return result;
-    };
-    Command2.prototype.parseAsync = function(argv) {
-      this.parse(argv);
-      return Promise.all(this._actionResults);
-    };
-    Command2.prototype.executeSubCommand = function(argv, args, unknown, executableFile) {
-      args = args.concat(unknown);
-      if (!args.length) this.help();
-      var isExplicitJS = false;
-      var pm = argv[1];
-      var bin = basename(pm, path.extname(pm)) + "-" + args[0];
-      if (executableFile != null) {
-        bin = executableFile;
-        var executableExt = path.extname(executableFile);
-        isExplicitJS = executableExt === ".js" || executableExt === ".ts" || executableExt === ".mjs";
-      }
-      var baseDir;
-      var resolvedLink = fs.realpathSync(pm);
-      baseDir = dirname3(resolvedLink);
-      var localBin = path.join(baseDir, bin);
-      if (exists(localBin + ".js")) {
-        bin = localBin + ".js";
-        isExplicitJS = true;
-      } else if (exists(localBin + ".ts")) {
-        bin = localBin + ".ts";
-        isExplicitJS = true;
-      } else if (exists(localBin + ".mjs")) {
-        bin = localBin + ".mjs";
-        isExplicitJS = true;
-      } else if (exists(localBin)) {
-        bin = localBin;
-      }
-      args = args.slice(1);
-      var proc;
-      if (process.platform !== "win32") {
-        if (isExplicitJS) {
-          args.unshift(bin);
-          args = incrementNodeInspectorPort(process.execArgv).concat(args);
-          proc = spawn(process.argv[0], args, { stdio: "inherit" });
-        } else {
-          proc = spawn(bin, args, { stdio: "inherit" });
-        }
-      } else {
-        args.unshift(bin);
-        args = incrementNodeInspectorPort(process.execArgv).concat(args);
-        proc = spawn(process.execPath, args, { stdio: "inherit" });
-      }
-      var signals = ["SIGUSR1", "SIGUSR2", "SIGTERM", "SIGINT", "SIGHUP"];
-      signals.forEach(function(signal) {
-        process.on(signal, function() {
-          if (proc.killed === false && proc.exitCode === null) {
-            proc.kill(signal);
-          }
-        });
-      });
-      const exitCallback = this._exitCallback;
-      if (!exitCallback) {
-        proc.on("close", process.exit.bind(process));
-      } else {
-        proc.on("close", () => {
-          exitCallback(new CommanderError(process.exitCode || 0, "commander.executeSubCommandAsync", "(close)"));
-        });
-      }
-      proc.on("error", function(err) {
-        if (err.code === "ENOENT") {
-          console.error("error: %s(1) does not exist, try --help", bin);
-        } else if (err.code === "EACCES") {
-          console.error("error: %s(1) not executable. try chmod or run with root", bin);
-        }
-        if (!exitCallback) {
-          process.exit(1);
-        } else {
-          const wrappedError = new CommanderError(1, "commander.executeSubCommandAsync", "(error)");
-          wrappedError.nestedError = err;
-          exitCallback(wrappedError);
-        }
-      });
-      this.runningCommand = proc;
-    };
-    Command2.prototype.normalize = function(args) {
-      var ret = [], arg, lastOpt, index, short, opt;
-      for (var i = 0, len = args.length; i < len; ++i) {
-        arg = args[i];
-        if (i > 0) {
-          lastOpt = this.optionFor(args[i - 1]);
-        }
-        if (arg === "--") {
-          ret = ret.concat(args.slice(i));
-          break;
-        } else if (lastOpt && lastOpt.required) {
-          ret.push(arg);
-        } else if (arg.length > 2 && arg[0] === "-" && arg[1] !== "-") {
-          short = arg.slice(0, 2);
-          opt = this.optionFor(short);
-          if (opt && (opt.required || opt.optional)) {
-            ret.push(short);
-            ret.push(arg.slice(2));
-          } else {
-            arg.slice(1).split("").forEach(function(c) {
-              ret.push("-" + c);
-            });
-          }
-        } else if (/^--/.test(arg) && ~(index = arg.indexOf("="))) {
-          ret.push(arg.slice(0, index), arg.slice(index + 1));
-        } else {
-          ret.push(arg);
-        }
-      }
-      return ret;
-    };
-    Command2.prototype.parseArgs = function(args, unknown) {
-      var name;
-      if (args.length) {
-        name = args[0];
-        if (this.listeners("command:" + name).length) {
-          this.emit("command:" + args.shift(), args, unknown);
-        } else {
-          this.emit("command:*", args, unknown);
-        }
-      } else {
-        outputHelpIfRequested(this, unknown);
-        if (unknown.length > 0 && !this.defaultExecutable) {
-          this.unknownOption(unknown[0]);
-        }
-        if (this.commands.length === 0 && this._args.filter(function(a) {
-          return a.required;
-        }).length === 0) {
-          this.emit("command:*");
-        }
-      }
-      return this;
-    };
-    Command2.prototype.optionFor = function(arg) {
-      for (var i = 0, len = this.options.length; i < len; ++i) {
-        if (this.options[i].is(arg)) {
-          return this.options[i];
-        }
-      }
-    };
-    Command2.prototype._checkForMissingMandatoryOptions = function() {
-      for (var cmd = this; cmd; cmd = cmd.parent) {
-        cmd.options.forEach((anOption) => {
-          if (anOption.mandatory && cmd._getOptionValue(anOption.attributeName()) === void 0) {
-            cmd.missingMandatoryOptionValue(anOption);
-          }
-        });
-      }
-    };
-    Command2.prototype.parseOptions = function(argv) {
-      var args = [], len = argv.length, literal, option, arg;
-      var unknownOptions = [];
-      for (var i = 0; i < len; ++i) {
-        arg = argv[i];
-        if (literal) {
-          args.push(arg);
-          continue;
-        }
-        if (arg === "--") {
-          literal = true;
-          continue;
-        }
-        option = this.optionFor(arg);
-        if (option) {
-          if (option.required) {
-            arg = argv[++i];
-            if (arg == null) return this.optionMissingArgument(option);
-            this.emit("option:" + option.name(), arg);
-          } else if (option.optional) {
-            arg = argv[i + 1];
-            if (arg == null || arg[0] === "-" && arg !== "-") {
-              arg = null;
-            } else {
-              ++i;
-            }
-            this.emit("option:" + option.name(), arg);
-          } else {
-            this.emit("option:" + option.name());
-          }
-          continue;
-        }
-        if (arg.length > 1 && arg[0] === "-") {
-          unknownOptions.push(arg);
-          if (i + 1 < argv.length && (argv[i + 1][0] !== "-" || argv[i + 1] === "-")) {
-            unknownOptions.push(argv[++i]);
-          }
-          continue;
-        }
-        args.push(arg);
-      }
-      return { args, unknown: unknownOptions };
-    };
-    Command2.prototype.opts = function() {
-      if (this._storeOptionsAsProperties) {
-        var result = {}, len = this.options.length;
-        for (var i = 0; i < len; i++) {
-          var key = this.options[i].attributeName();
-          result[key] = key === this._versionOptionName ? this._version : this[key];
-        }
-        return result;
-      }
-      return this._optionValues;
-    };
-    Command2.prototype.missingArgument = function(name) {
-      const message = `error: missing required argument '${name}'`;
-      console.error(message);
-      this._exit(1, "commander.missingArgument", message);
-    };
-    Command2.prototype.optionMissingArgument = function(option, flag) {
-      let message;
-      if (flag) {
-        message = `error: option '${option.flags}' argument missing, got '${flag}'`;
-      } else {
-        message = `error: option '${option.flags}' argument missing`;
-      }
-      console.error(message);
-      this._exit(1, "commander.optionMissingArgument", message);
-    };
-    Command2.prototype.missingMandatoryOptionValue = function(option) {
-      const message = `error: required option '${option.flags}' not specified`;
-      console.error(message);
-      this._exit(1, "commander.missingMandatoryOptionValue", message);
-    };
-    Command2.prototype.unknownOption = function(flag) {
-      if (this._allowUnknownOption) return;
-      const message = `error: unknown option '${flag}'`;
-      console.error(message);
-      this._exit(1, "commander.unknownOption", message);
-    };
-    Command2.prototype.variadicArgNotLast = function(name) {
-      const message = `error: variadic arguments must be last '${name}'`;
-      console.error(message);
-      this._exit(1, "commander.variadicArgNotLast", message);
-    };
-    Command2.prototype.version = function(str, flags, description) {
-      if (arguments.length === 0) return this._version;
-      this._version = str;
-      flags = flags || "-V, --version";
-      description = description || "output the version number";
-      var versionOption = new Option(flags, description);
-      this._versionOptionName = versionOption.long.substr(2) || "version";
-      this.options.push(versionOption);
-      var self = this;
-      this.on("option:" + this._versionOptionName, function() {
-        process.stdout.write(str + "\n");
-        self._exit(0, "commander.version", str);
-      });
-      return this;
-    };
-    Command2.prototype.description = function(str, argsDescription) {
-      if (arguments.length === 0) return this._description;
-      this._description = str;
-      this._argsDescription = argsDescription;
-      return this;
-    };
-    Command2.prototype.alias = function(alias) {
-      var command = this;
-      if (this.commands.length !== 0) {
-        command = this.commands[this.commands.length - 1];
-      }
-      if (arguments.length === 0) return command._alias;
-      if (alias === command._name) throw new Error("Command alias can't be the same as its name");
-      command._alias = alias;
-      return this;
-    };
-    Command2.prototype.usage = function(str) {
-      var args = this._args.map(function(arg) {
-        return humanReadableArgName(arg);
-      });
-      var usage = "[options]" + (this.commands.length ? " [command]" : "") + (this._args.length ? " " + args.join(" ") : "");
-      if (arguments.length === 0) return this._usage || usage;
-      this._usage = str;
-      return this;
-    };
-    Command2.prototype.name = function(str) {
-      if (arguments.length === 0) return this._name;
-      this._name = str;
-      return this;
-    };
-    Command2.prototype.prepareCommands = function() {
-      return this.commands.filter(function(cmd) {
-        return !cmd._noHelp;
-      }).map(function(cmd) {
-        var args = cmd._args.map(function(arg) {
-          return humanReadableArgName(arg);
-        }).join(" ");
-        return [
-          cmd._name + (cmd._alias ? "|" + cmd._alias : "") + (cmd.options.length ? " [options]" : "") + (args ? " " + args : ""),
-          cmd._description
-        ];
-      });
-    };
-    Command2.prototype.largestCommandLength = function() {
-      var commands = this.prepareCommands();
-      return commands.reduce(function(max, command) {
-        return Math.max(max, command[0].length);
-      }, 0);
-    };
-    Command2.prototype.largestOptionLength = function() {
-      var options = [].slice.call(this.options);
-      options.push({
-        flags: this._helpFlags
-      });
-      return options.reduce(function(max, option) {
-        return Math.max(max, option.flags.length);
-      }, 0);
-    };
-    Command2.prototype.largestArgLength = function() {
-      return this._args.reduce(function(max, arg) {
-        return Math.max(max, arg.name.length);
-      }, 0);
-    };
-    Command2.prototype.padWidth = function() {
-      var width = this.largestOptionLength();
-      if (this._argsDescription && this._args.length) {
-        if (this.largestArgLength() > width) {
-          width = this.largestArgLength();
-        }
-      }
-      if (this.commands && this.commands.length) {
-        if (this.largestCommandLength() > width) {
-          width = this.largestCommandLength();
-        }
-      }
-      return width;
-    };
-    Command2.prototype.optionHelp = function() {
-      var width = this.padWidth();
-      var columns = process.stdout.columns || 80;
-      var descriptionWidth = columns - width - 4;
-      return this.options.map(function(option) {
-        const fullDesc = option.description + (!option.negate && option.defaultValue !== void 0 ? " (default: " + JSON.stringify(option.defaultValue) + ")" : "");
-        return pad(option.flags, width) + "  " + optionalWrap(fullDesc, descriptionWidth, width + 2);
-      }).concat([pad(this._helpFlags, width) + "  " + optionalWrap(this._helpDescription, descriptionWidth, width + 2)]).join("\n");
-    };
-    Command2.prototype.commandHelp = function() {
-      if (!this.commands.length) return "";
-      var commands = this.prepareCommands();
-      var width = this.padWidth();
-      var columns = process.stdout.columns || 80;
-      var descriptionWidth = columns - width - 4;
-      return [
-        "Commands:",
-        commands.map(function(cmd) {
-          var desc = cmd[1] ? "  " + cmd[1] : "";
-          return (desc ? pad(cmd[0], width) : cmd[0]) + optionalWrap(desc, descriptionWidth, width + 2);
-        }).join("\n").replace(/^/gm, "  "),
-        ""
-      ].join("\n");
-    };
-    Command2.prototype.helpInformation = function() {
-      var desc = [];
-      if (this._description) {
-        desc = [
-          this._description,
-          ""
-        ];
-        var argsDescription = this._argsDescription;
-        if (argsDescription && this._args.length) {
-          var width = this.padWidth();
-          var columns = process.stdout.columns || 80;
-          var descriptionWidth = columns - width - 5;
-          desc.push("Arguments:");
-          desc.push("");
-          this._args.forEach(function(arg) {
-            desc.push("  " + pad(arg.name, width) + "  " + wrap(argsDescription[arg.name], descriptionWidth, width + 4));
-          });
-          desc.push("");
-        }
-      }
-      var cmdName = this._name;
-      if (this._alias) {
-        cmdName = cmdName + "|" + this._alias;
-      }
-      var parentCmdNames = "";
-      for (var parentCmd = this.parent; parentCmd; parentCmd = parentCmd.parent) {
-        parentCmdNames = parentCmd.name() + " " + parentCmdNames;
-      }
-      var usage = [
-        "Usage: " + parentCmdNames + cmdName + " " + this.usage(),
-        ""
-      ];
-      var cmds = [];
-      var commandHelp = this.commandHelp();
-      if (commandHelp) cmds = [commandHelp];
-      var options = [
-        "Options:",
-        "" + this.optionHelp().replace(/^/gm, "  "),
-        ""
-      ];
-      return usage.concat(desc).concat(options).concat(cmds).join("\n");
-    };
-    Command2.prototype.outputHelp = function(cb) {
-      if (!cb) {
-        cb = function(passthru) {
-          return passthru;
-        };
-      }
-      const cbOutput = cb(this.helpInformation());
-      if (typeof cbOutput !== "string" && !Buffer.isBuffer(cbOutput)) {
-        throw new Error("outputHelp callback must return a string or a Buffer");
-      }
-      process.stdout.write(cbOutput);
-      this.emit(this._helpLongFlag);
-    };
-    Command2.prototype.helpOption = function(flags, description) {
-      this._helpFlags = flags || this._helpFlags;
-      this._helpDescription = description || this._helpDescription;
-      var splitFlags = this._helpFlags.split(/[ ,|]+/);
-      if (splitFlags.length > 1) this._helpShortFlag = splitFlags.shift();
-      this._helpLongFlag = splitFlags.shift();
-      return this;
-    };
-    Command2.prototype.help = function(cb) {
-      this.outputHelp(cb);
-      this._exit(process.exitCode || 0, "commander.help", "(outputHelp)");
-    };
-    function camelcase(flag) {
-      return flag.split("-").reduce(function(str, word) {
-        return str + word[0].toUpperCase() + word.slice(1);
-      });
-    }
-    function pad(str, width) {
-      var len = Math.max(0, width - str.length);
-      return str + Array(len + 1).join(" ");
-    }
-    function wrap(str, width, indent) {
-      var regex = new RegExp(".{1," + (width - 1) + "}([\\s\u200B]|$)|[^\\s\u200B]+?([\\s\u200B]|$)", "g");
-      var lines = str.match(regex) || [];
-      return lines.map(function(line, i) {
-        if (line.slice(-1) === "\n") {
-          line = line.slice(0, line.length - 1);
-        }
-        return (i > 0 && indent ? Array(indent + 1).join(" ") : "") + line.trimRight();
-      }).join("\n");
-    }
-    function optionalWrap(str, width, indent) {
-      if (str.match(/[\n]\s+/)) return str;
-      const minWidth = 40;
-      if (width < minWidth) return str;
-      return wrap(str, width, indent);
-    }
-    function outputHelpIfRequested(cmd, options) {
-      options = options || [];
-      for (var i = 0; i < options.length; i++) {
-        if (options[i] === cmd._helpLongFlag || options[i] === cmd._helpShortFlag) {
-          cmd.outputHelp();
-          cmd._exit(0, "commander.helpDisplayed", "(outputHelp)");
-        }
-      }
-    }
-    function humanReadableArgName(arg) {
-      var nameOutput = arg.name + (arg.variadic === true ? "..." : "");
-      return arg.required ? "<" + nameOutput + ">" : "[" + nameOutput + "]";
-    }
-    function exists(file) {
-      try {
-        if (fs.statSync(file).isFile()) {
-          return true;
-        }
-      } catch (e) {
-        return false;
-      }
-    }
-    function incrementNodeInspectorPort(args) {
-      return args.map((arg) => {
-        var result = arg;
-        if (arg.indexOf("--inspect") === 0) {
-          var debugOption;
-          var debugHost = "127.0.0.1";
-          var debugPort = "9229";
-          var match;
-          if ((match = arg.match(/^(--inspect(-brk)?)$/)) !== null) {
-            debugOption = match[1];
-          } else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+)$/)) !== null) {
-            debugOption = match[1];
-            if (/^\d+$/.test(match[3])) {
-              debugPort = match[3];
-            } else {
-              debugHost = match[3];
-            }
-          } else if ((match = arg.match(/^(--inspect(-brk|-port)?)=([^:]+):(\d+)$/)) !== null) {
-            debugOption = match[1];
-            debugHost = match[3];
-            debugPort = match[4];
-          }
-          if (debugOption && debugPort !== "0") {
-            result = `${debugOption}=${debugHost}:${parseInt(debugPort) + 1}`;
-          }
-        }
-        return result;
-      });
-    }
-  }
-});
-
-// src/cli.ts
-init_cjs_shims();
-var import_commander = __toESM(require_commander(), 1);
+// src/simple-cli.ts
 var import_promises5 = require("fs/promises");
-var import_path3 = require("path");
-
-// src/index.ts
-init_cjs_shims();
 
 // src/AIRefactor.ts
-init_cjs_shims();
 var import_promises4 = require("fs/promises");
 var import_child_process2 = require("child_process");
 var import_util2 = require("util");
 
 // src/AIAnalyzer.ts
-init_cjs_shims();
 var import_promises = require("fs/promises");
 var import_path = require("path");
 
 // src/AIAnalyzerBase.ts
-init_cjs_shims();
 var AIAnalyzerBase = class {
   config;
   constructor(config) {
@@ -1361,36 +526,34 @@ var AIAnalyzer = class {
    */
   async findUnusedVariables(content, filePath) {
     const issues = [];
-    const variableMatches = content.matchAll(/(?:let|const|var)\s+(\w+)/g);
-    const definedVars = /* @__PURE__ */ new Set();
-    const usedVars = /* @__PURE__ */ new Set();
-    for (const match of variableMatches) {
-      const varName = match[1];
-      if (!/\w+\s*\([^)]*\)\s*\{/.test(content.substring(0, match.index))) {
-        definedVars.add(varName);
-      }
+    const declarationRegex = /(?:let|const|var)\s+(\w+)/g;
+    const declarations = [];
+    for (const match of content.matchAll(declarationRegex)) {
+      declarations.push({ name: match[1], index: match.index });
     }
-    const usageMatches = content.matchAll(/\b(\w+)\b/g);
-    for (const match of usageMatches) {
-      usedVars.add(match[1]);
-    }
-    for (const varName of definedVars) {
-      if (!usedVars.has(varName)) {
-        const line = content.substring(0, content.indexOf(varName, content.search(varName))).split("\n").length;
-        issues.push({
-          type: "verification",
-          severity: "low",
-          category: "unused-variable",
-          title: "Unused variable",
-          description: `Variable '${varName}' is defined but never used`,
-          file: filePath,
-          line,
-          column: 0,
-          codeSnippet: `const ${varName}`,
-          fixable: true,
-          suggestion: `Remove unused variable '${varName}'`,
-          confidence: 0.8
-        });
+    for (const decl of declarations) {
+      const { name, index } = decl;
+      const usageAfterDecl = content.substring(index + name.length).matchAll(new RegExp(`\\b${name}\\b`, "g"));
+      if (usageAfterDecl) {
+        const usages = Array.from(usageAfterDecl);
+        if (usages.length === 0) {
+          const line = content.substring(0, index).split("\n").length + 1;
+          const column = index - content.lastIndexOf("\n", index) - 1;
+          issues.push({
+            type: "verification",
+            severity: "low",
+            category: "unused-variable",
+            title: "Unused variable",
+            description: `Variable '${name}' is defined but never used`,
+            file: filePath,
+            line,
+            column,
+            codeSnippet: `let ${name}`,
+            fixable: true,
+            suggestion: `Remove unused variable '${name}'`,
+            confidence: 0.8
+          });
+        }
       }
     }
     return issues;
@@ -1398,7 +561,6 @@ var AIAnalyzer = class {
 };
 
 // src/AIFixer.ts
-init_cjs_shims();
 var import_promises2 = require("fs/promises");
 var import_child_process = require("child_process");
 var import_util = require("util");
@@ -1772,7 +934,6 @@ ${body}`;
 };
 
 // src/FileProcessor.ts
-init_cjs_shims();
 var import_promises3 = require("fs/promises");
 var import_path2 = require("path");
 var FileProcessor = class {
@@ -1898,11 +1059,18 @@ var FileProcessor = class {
    */
   globToRegex(glob) {
     let regex = glob;
-    regex = regex.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
-    regex = regex.replace(/\*\*/g, ".*");
-    regex = regex.replace(/\*/g, "[^/]*");
-    regex = regex.replace(/\?/g, "[^/]");
-    regex = regex.replace(/\{([^}]+)\}/g, "(?:$1)");
+    regex = regex.replace(/\*\*/g, "__DOUBLE_STAR__");
+    regex = regex.replace(/\*/g, "__STAR__");
+    regex = regex.replace(/\?/g, "__QUESTION__");
+    regex = regex.replace(/\{([^}]+)\}/g, "__ALT_START__$1__ALT_END__");
+    regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, "\\$&");
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
+      const alternatives = content.split(",").map((a) => a.trim()).join("|");
+      return `(?:${alternatives})`;
+    });
+    regex = regex.replace(/__DOUBLE_STAR__/g, ".*");
+    regex = regex.replace(/__STAR__/g, "[^/]*");
+    regex = regex.replace(/__QUESTION__/g, "[^/]");
     return `^${regex}$`;
   }
   /**
@@ -2073,7 +1241,6 @@ var FileProcessor = class {
 };
 
 // src/OutputFormatter.ts
-init_cjs_shims();
 var OutputFormatter = class {
   config;
   constructor(config) {
@@ -2411,6 +1578,11 @@ var AIRefactor = class {
    */
   async analyze(path, config) {
     const finalConfig = { ...this.config, ...config };
+    try {
+      await (0, import_promises4.stat)(path);
+    } catch {
+      throw new Error(`Analysis failed: Path '${path}' does not exist`);
+    }
     const files = await this.fileProcessor.findFiles(path);
     const issues = [];
     const warnings = [];
@@ -2783,325 +1955,327 @@ var AIRefactor = class {
 // src/index.ts
 var aiRefactor = new AIRefactor();
 
-// src/cli.ts
-var program = new import_commander.Command();
-program.name("ai-refactor-x").description("Zero-dependency AI-powered code refactoring tool").version("1.0.0");
-program.option("-p, --pattern <pattern>", "File pattern to analyze (can be used multiple times)", (value, previous) => {
-  return [...previous, value];
-}, []).option("-i, --ignore <pattern>", "Pattern to ignore (can be used multiple times)", (value, previous) => {
-  return [...previous, value];
-}, []).option("-d, --depth <number>", "Maximum directory depth to analyze", parseInt).option("-m, --max-files <number>", "Maximum number of files to analyze", parseInt).option("--output-format <format>", "Output format (console|json|markdown)", "console").option("--ai-provider <provider>", "AI provider (openai|anthropic|local)", "openai").option("--model <model>", "AI model to use", "gpt-4").option("--output <file>", "Output file to save report").option("--config <file>", "Configuration file path").option("-v, --verbose", "Verbose output").option("--dry-run", "Show what would be fixed without making changes");
-program.command("analyze").argument("<path>", "Path to analyze (file or directory)").description("Analyze code and identify issues").option("--fixable", "Only show fixable issues").option("--severity <level>", "Filter by severity (critical|high|medium|low)").option("--category <category>", "Filter by category").option("--format <format>", "Output format (console|json|markdown)", "console").option("--save-report <file>", "Save analysis report to file").action(async (path, options) => {
-  try {
-    const config = await buildConfig(options);
-    const aiRefactor2 = new AIRefactor(config);
-    if (options.verbose) {
-      console.log("\u{1F50D} Analyzing:", path);
-      console.log("Configuration:", JSON.stringify(config, null, 2));
-    }
-    const result = await aiRefactor2.analyze(path, config);
-    if (options.fixable) {
-      result.issues = result.issues.filter((issue) => issue.fixable);
-      result.suggestions = result.suggestions.filter((suggestion) => suggestion.issue.fixable);
-    }
-    if (options.severity) {
-      result.issues = result.issues.filter((issue) => issue.severity === options.severity);
-      result.suggestions = result.suggestions.filter((suggestion) => suggestion.issue.severity === options.severity);
-    }
-    if (options.category) {
-      result.issues = result.issues.filter((issue) => issue.category === options.category);
-      result.suggestions = result.suggestions.filter((suggestion) => suggestion.issue.category === options.category);
-    }
-    if (options.saveReport) {
-      const report = formatReport(result, options.format);
-      await (0, import_promises5.writeFile)(options.saveReport, report);
-      console.log(`\u{1F4C4} Report saved to: ${options.saveReport}`);
-    } else {
-      outputResult(result, options.format, options.verbose);
-    }
-    process.exit(result.issues.length === 0 ? 0 : 1);
-  } catch (error) {
-    console.error("\u274C Analysis failed:", error.message);
-    process.exit(1);
-  }
-});
-program.command("refactor").argument("<path>", "Path to refactor (file or directory)").description("Apply refactoring fixes to code").option("--fix", "Apply fixes automatically").option("--interactive", "Interactive mode for applying fixes").option("--backup", "Create backup before making changes (default: true)", true).option("--dry-run", "Show what would be fixed without making changes").option("--yes", "Auto-confirm all fixes").option("--suggestions-only", "Only show suggestions without applying").action(async (path, options) => {
-  try {
-    const config = await buildConfig(options);
-    const aiRefactor2 = new AIRefactor(config);
-    if (options.verbose) {
-      console.log("\u{1F527} Refactoring:", path);
-      console.log("Options:", JSON.stringify({
-        fix: options.fix,
-        interactive: options.interactive,
-        backup: options.backup,
-        dryRun: options.dryRun,
-        yes: options.yes,
-        suggestionsOnly: options.suggestionsOnly
-      }, null, 2));
-    }
-    if (options.dryRun || options.suggestionsOnly) {
-      const result = await aiRefactor2.analyze(path, config);
-      console.log("\u{1F4CB} Summary:");
-      console.log(`- Files analyzed: ${result.totalFiles}`);
-      console.log(`- Issues found: ${result.summary.totalIssues}`);
-      console.log(`- Fixable issues: ${result.summary.fixableIssues}`);
-      console.log(`- Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
-      if (options.suggestionsOnly) {
-        console.log("\n\u{1F4A1} Suggestions:");
-        for (const suggestion of result.suggestions.slice(0, 5)) {
-          console.log(`- ${suggestion.issue.title} (${suggestion.issue.file}:${suggestion.issue.line})`);
-          console.log(`  ${suggestion.explanation}`);
-          console.log(`  Savings: ${suggestion.estimatedSavings.lines} lines`);
-        }
-        if (result.suggestions.length > 5) {
-          console.log(`... and ${result.suggestions.length - 5} more suggestions`);
-        }
-      }
-      return;
-    }
-    if (options.interactive) {
-      const result = await aiRefactor2.analyze(path, config);
-      console.log("\u{1F4CB} Analysis complete:");
-      console.log(`Found ${result.summary.totalIssues} issues (${result.summary.fixableIssues} fixable)`);
-      for (const suggestion of result.suggestions) {
-        console.log(`
-\u{1F4A1} ${suggestion.issue.title}`);
-        console.log(`   ${suggestion.explanation}`);
-        console.log(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
-        console.log(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
-        console.log(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
-        if (!options.yes) {
-          const answer = await prompt("Apply this fix? (y/N): ");
-          if (answer.toLowerCase() !== "y") {
-            continue;
-          }
-        }
-        try {
-          await aiRefactor2.fix(path, [suggestion.issue]);
-          console.log(`\u2705 Applied fix: ${suggestion.issue.title}`);
-        } catch (error) {
-          console.error(`\u274C Failed to apply fix: ${error.message}`);
-        }
-      }
-      return;
-    }
-    if (options.fix) {
-      const result = await aiRefactor2.refactor(path, {
-        fix: true,
-        interactive: false,
-        backup: options.backup,
-        dryRun: false,
-        verbose: options.verbose,
-        output: "",
-        yes: options.yes
-      });
-      console.log("\u2705 Refactoring complete!");
-      console.log(`- Fixed ${result.summary.fixableIssues} issues`);
-      console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
-      console.log(`- Time saved: ${result.summary.estimatedTime}`);
-      if (result.warnings.length > 0) {
-        console.log("\n\u26A0\uFE0F Warnings:");
-        for (const warning of result.warnings) {
-          console.log(`- ${warning}`);
-        }
-      }
-      if (result.errors.length > 0) {
-        console.log("\n\u274C Errors:");
-        for (const error of result.errors) {
-          console.log(`- ${error}`);
-        }
-      }
-    }
-  } catch (error) {
-    console.error("\u274C Refactoring failed:", error.message);
-    process.exit(1);
-  }
-});
-program.command("fix").argument("<path>", "Path to fix (file or directory)").description("Quick fix command for issues").option("--backup", "Create backup before making changes", true).option("--interactive", "Interactive mode").action(async (path, options) => {
-  try {
-    const config = await buildConfig(options);
-    const aiRefactor2 = new AIRefactor(config);
-    if (options.verbose) {
-      console.log("\u{1F527} Quick fix:", path);
-    }
-    const result = await aiRefactor2.fix(path);
-    console.log("\u2705 Fix complete!");
-    console.log(`- Fixed ${result.summary.fixableIssues} issues`);
-    console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
-    console.log(`- Time saved: ${result.summary.estimatedTime}`);
-  } catch (error) {
-    console.error("\u274C Fix failed:", error.message);
-    process.exit(1);
-  }
-});
-program.command("suggest").argument("<path>", "Path to get suggestions for").description("Get refactoring suggestions without applying them").option("--save <file>", "Save suggestions to file").action(async (path, options) => {
-  try {
-    const config = await buildConfig(options);
-    const aiRefactor2 = new AIRefactor(config);
-    if (options.verbose) {
-      console.log("\u{1F4A1} Getting suggestions for:", path);
-    }
-    const suggestions = await aiRefactor2.suggest(path);
-    console.log("\u{1F4CB} Refactoring Suggestions:");
-    console.log(`Found ${suggestions.length} suggestions
-`);
-    for (const suggestion of suggestions) {
-      console.log(`\u{1F4A1} ${suggestion.issue.title}`);
-      console.log(`   File: ${suggestion.issue.file}:${suggestion.issue.line}`);
-      console.log(`   Category: ${suggestion.issue.category}`);
-      console.log(`   Severity: ${suggestion.issue.severity}`);
-      console.log(`   Confidence: ${Math.round(suggestion.confidence * 100)}%`);
-      console.log(`   Savings: ${suggestion.estimatedSavings.lines} lines (${suggestion.estimatedSavings.percentage}%)`);
-      console.log(`   Explanation: ${suggestion.explanation}
-`);
-    }
-    if (options.save) {
-      const report = {
-        suggestions: suggestions.map((s) => ({
-          id: s.id,
-          title: s.issue.title,
-          file: s.issue.file,
-          line: s.issue.line,
-          category: s.issue.category,
-          severity: s.issue.severity,
-          confidence: s.confidence,
-          savings: s.estimatedSavings,
-          explanation: s.explanation,
-          beforeCode: s.beforeCode,
-          afterCode: s.afterCode
-        })),
-        total: suggestions.length,
-        timestamp: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await (0, import_promises5.writeFile)(options.save, JSON.stringify(report, null, 2));
-      console.log(`\u{1F4C4} Suggestions saved to: ${options.save}`);
-    }
-  } catch (error) {
-    console.error("\u274C Failed to get suggestions:", error.message);
-    process.exit(1);
-  }
-});
-program.command("info").argument("<path>", "Path to get information about").description("Get information about a codebase").action(async (path) => {
-  try {
-    const config = await buildConfig({});
-    const aiRefactor2 = new AIRefactor(config);
-    const result = await aiRefactor2.analyze(path, config);
-    console.log("\u{1F4CA} Codebase Information:");
-    console.log(`Files analyzed: ${result.totalFiles}`);
-    console.log(`Total issues: ${result.summary.totalIssues}`);
-    console.log(`Fixable issues: ${result.summary.fixableIssues}`);
-    console.log(`Critical issues: ${result.summary.criticalIssues}`);
-    console.log(`Estimated time to fix: ${result.summary.estimatedTime}`);
-    console.log(`Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
-    const categories = result.issues.reduce((acc, issue) => {
-      acc[issue.category] = (acc[issue.category] || 0) + 1;
-      return acc;
-    }, {});
-    console.log("\n\u{1F4C8} Issues by Category:");
-    Object.entries(categories).sort(([, a], [, b]) => b - a).forEach(([category, count]) => {
-      console.log(`  ${category}: ${count}`);
-    });
-  } catch (error) {
-    console.error("\u274C Failed to get info:", error.message);
-    process.exit(1);
-  }
-});
-async function buildConfig(options) {
-  const config = {
-    patterns: options.pattern || ["**/*.{js,ts,jsx,tsx}"],
-    ignore: options.ignore || ["**/node_modules/**", "**/dist/**", "**/build/**", "**/*.test.*", "**/*.spec.*"],
-    depth: options.depth,
-    maxFiles: options.maxFiles,
-    outputFormat: options.outputFormat || "console",
-    aiProvider: options.aiProvider || "openai",
-    model: options.model || "gpt-4"
+// src/simple-cli.ts
+function kebabToCamel(str) {
+  return str.replace(/-([a-z])/g, (_, char) => char.toUpperCase());
+}
+function parseValue(val) {
+  if (val === "true") return true;
+  if (val === "false") return false;
+  return val;
+}
+function parseArgs(args) {
+  const result = {
+    command: "",
+    options: {}
   };
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg.startsWith("--")) {
+      const equalIdx = arg.indexOf("=");
+      if (equalIdx > -1) {
+        const key = kebabToCamel(arg.slice(2, equalIdx));
+        result.options[key] = parseValue(arg.slice(equalIdx + 1));
+      } else if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
+        const key = kebabToCamel(arg.slice(2));
+        result.options[key] = args[i + 1];
+        i++;
+      } else {
+        const key = kebabToCamel(arg.slice(2));
+        result.options[key] = true;
+      }
+    } else if (arg.startsWith("-") && arg.length > 1) {
+      if (i + 1 < args.length && !args[i + 1].startsWith("-")) {
+        const key = kebabToCamel(arg.slice(1));
+        result.options[key] = args[i + 1];
+        i++;
+      } else {
+        const key = kebabToCamel(arg.slice(1));
+        result.options[key] = true;
+      }
+    } else if (!result.command) {
+      result.command = arg;
+    } else if (!result.path) {
+      result.path = arg;
+    }
+  }
+  return result;
+}
+async function buildConfig(options) {
+  const config = {};
+  if (options.pattern) {
+    config.patterns = Array.isArray(options.pattern) ? options.pattern : [options.pattern];
+  }
+  if (options.ignore) {
+    config.ignore = Array.isArray(options.ignore) ? options.ignore : [options.ignore];
+  }
+  if (options.depth) {
+    config.depth = parseInt(options.depth);
+  }
+  if (options.maxFiles) {
+    config.maxFiles = parseInt(options.maxFiles);
+  }
+  if (options.outputFormat) {
+    config.outputFormat = options.outputFormat;
+  }
+  if (options.aiProvider) {
+    config.aiProvider = options.aiProvider;
+  }
+  if (options.model) {
+    config.model = options.model;
+  }
   if (options.config) {
     try {
-      const configData = await (0, import_promises5.readFile)((0, import_path3.join)(process.cwd(), options.config), "utf-8");
-      const fileConfig = JSON.parse(configData);
+      const configContent = await (0, import_promises5.readFile)(options.config, "utf-8");
+      const fileConfig = JSON.parse(configContent);
       Object.assign(config, fileConfig);
     } catch (error) {
-      if (options.verbose) {
-        console.warn(`Could not load config file: ${error.message}`);
-      }
+      console.error(`Warning: Could not read config file ${options.config}: ${error.message}`);
     }
   }
   return config;
 }
-function formatReport(result, format) {
-  switch (format) {
-    case "json":
-      return JSON.stringify(result, null, 2);
-    case "markdown":
-      return formatMarkdownReport(result);
-    default:
-      return formatConsoleReport(result);
+async function handleAnalyze(path, options) {
+  if (!path) {
+    console.error("Analysis failed: Path is required");
+    process.exit(1);
   }
-}
-function formatConsoleReport(result) {
-  let output = "";
-  output += `\u{1F4CA} Analysis Report
-`;
-  output += `Files: ${result.totalFiles}
-`;
-  output += `Issues: ${result.summary.totalIssues}
-`;
-  output += `Fixable: ${result.summary.fixableIssues}
-`;
-  output += `Savings: ${result.summary.estimatedSavings.lines} lines
-`;
-  return output;
-}
-function formatMarkdownReport(result) {
-  let markdown = `# AI Refactor Report
-
-`;
-  markdown += `Files: ${result.totalFiles}
-`;
-  markdown += `Issues: ${result.summary.totalIssues}
-`;
-  markdown += `Fixable: ${result.summary.fixableIssues}
-`;
-  return markdown;
-}
-function outputResult(result, format, verbose) {
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  if (options.verbose && format !== "json") {
+    console.error(`Analyzing: ${path}`);
+  }
+  let result = await aiRefactor2.analyze(path, config);
+  if (options.severity) {
+    result.issues = result.issues.filter((issue) => issue.severity === options.severity);
+  }
+  if (options.category) {
+    result.issues = result.issues.filter((issue) => issue.category === options.category);
+  }
+  if (options.fixable) {
+    result.issues = result.issues.filter((issue) => issue.fixable);
+  }
+  if (options.saveReport) {
+    const report = format === "json" ? JSON.stringify(result, null, 2) : aiRefactor2.formatConsole(result);
+    await (0, import_promises5.writeFile)(options.saveReport, report);
+    if (format !== "json") {
+      console.log(`Report saved to: ${options.saveReport}`);
+    }
+  }
   if (format === "json") {
     console.log(JSON.stringify(result, null, 2));
-    return;
-  }
-  if (format === "markdown") {
-    console.log(formatMarkdownReport(result));
-    return;
-  }
-  console.log(`\u{1F4CA} Analysis Complete!`);
-  console.log(`\u{1F4C1} Files analyzed: ${result.totalFiles}`);
-  console.log(`\u{1F50D} Issues found: ${result.summary.totalIssues}`);
-  console.log(`\u{1F527} Fixable issues: ${result.summary.fixableIssues}`);
-  console.log(`\u{1F680} Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
-  console.log(`\u23F1\uFE0F  Estimated time: ${result.summary.estimatedTime}`);
-  if (result.warnings.length > 0 && verbose) {
-    console.log("\n\u26A0\uFE0F Warnings:");
-    result.warnings.forEach((warning) => console.log(`  ${warning}`));
-  }
-  if (result.errors.length > 0 && verbose) {
-    console.log("\n\u274C Errors:");
-    result.errors.forEach((error) => console.log(`  ${error}`));
+  } else if (format === "markdown") {
+    console.log(aiRefactor2.formatMarkdown(result));
+  } else {
+    if (result.issues.length === 0) {
+      console.log("\u2705 No issues found!");
+    } else {
+      console.log(aiRefactor2.formatConsole(result));
+    }
   }
 }
-async function prompt(question) {
-  const readline = await import("readline");
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer);
+async function handleSuggest(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for suggest command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  const savePath = options.save || options.saveReport;
+  if (options.verbose && format !== "json") {
+    console.error(`Generating suggestions for: ${path}`);
+  }
+  const suggestions = await aiRefactor2.suggest(path);
+  const report = {
+    suggestions: suggestions.map((s) => ({
+      id: s.id,
+      title: s.issue.title,
+      file: s.issue.file,
+      line: s.issue.line,
+      category: s.issue.category,
+      severity: s.issue.severity,
+      confidence: s.confidence,
+      savings: s.estimatedSavings,
+      explanation: s.explanation,
+      beforeCode: s.beforeCode,
+      afterCode: s.afterCode
+    })),
+    total: suggestions.length,
+    timestamp: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  if (format === "json") {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(aiRefactor2.formatSuggestions(suggestions));
+  }
+  if (savePath) {
+    await (0, import_promises5.writeFile)(savePath, JSON.stringify(report, null, 2));
+    if (format !== "json") {
+      console.log(`Suggestions saved to: ${savePath}`);
+    }
+  }
+}
+async function handleRefactor(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for refactor command");
+    process.exit(1);
+  }
+  const refactorOptions = {
+    fix: options.fix || false,
+    interactive: options.interactive || false,
+    backup: options.backup !== void 0 ? options.backup : false,
+    dryRun: options.dryRun !== void 0 ? options.dryRun : false,
+    output: options.output || "",
+    verbose: options.verbose || false,
+    yes: options.yes || false
+  };
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  if (options.verbose && format !== "json") {
+    console.error(`Refactoring: ${path}`);
+  }
+  if (refactorOptions.dryRun) {
+    const result2 = await aiRefactor2.analyze(path, config);
+    console.log("\u{1F4CB} Summary:");
+    console.log(`Files analyzed: ${result2.totalFiles}`);
+    console.log(`Issues found: ${result2.summary.totalIssues}`);
+    console.log(`Fixable issues: ${result2.summary.fixableIssues}`);
+    console.log(`Potential savings: ${result2.summary.estimatedSavings.lines} lines (${result2.summary.estimatedSavings.percentage}%)`);
+    return;
+  }
+  if (refactorOptions.fix) {
+    const result2 = await aiRefactor2.refactor(path, refactorOptions);
+    if (format === "json") {
+      console.log(JSON.stringify(result2, null, 2));
+    } else {
+      console.log("\u2705 Refactoring complete!");
+      console.log(`- Fixed ${result2.summary.fixableIssues} issues`);
+      console.log(`- Saved ${result2.summary.estimatedSavings.lines} lines`);
+      console.log(`- Time saved: ${result2.summary.estimatedTime}`);
+    }
+    return;
+  }
+  const result = await aiRefactor2.analyze(path, config);
+  console.log("\u{1F4CB} Summary:");
+  console.log(`Files analyzed: ${result.totalFiles}`);
+  console.log(`Issues found: ${result.summary.totalIssues}`);
+}
+async function handleFix(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for fix command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const result = await aiRefactor2.fix(path);
+  console.log("\u2705 Fix complete!");
+  console.log(`- Fixed ${result.summary.fixableIssues} issues`);
+  console.log(`- Saved ${result.summary.estimatedSavings.lines} lines`);
+}
+async function handleInfo(path, options) {
+  if (!path) {
+    console.error("Error: Path is required for info command");
+    process.exit(1);
+  }
+  const config = await buildConfig(options);
+  const aiRefactor2 = new AIRefactor(config);
+  const format = options.format || options.outputFormat || "console";
+  const result = await aiRefactor2.analyze(path);
+  if (format === "json") {
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log("\u{1F4CA} Codebase Information:");
+    console.log(`Files analyzed: ${result.totalFiles}`);
+    console.log(`Total issues: ${result.summary.totalIssues}`);
+    console.log(`Fixable issues: ${result.summary.fixableIssues}`);
+    console.log(`Estimated time to fix: ${result.summary.estimatedTime}`);
+    console.log(`Potential savings: ${result.summary.estimatedSavings.lines} lines (${result.summary.estimatedSavings.percentage}%)`);
+    const categories = {};
+    result.issues.forEach((issue) => {
+      categories[issue.category] = (categories[issue.category] || 0) + 1;
     });
-  });
+    console.log("\n\u{1F4C8} Issues by Category:");
+    Object.entries(categories).sort(([, a], [, b]) => b - a).forEach(([category, count]) => {
+      console.log(`  ${category}: ${count}`);
+    });
+  }
 }
-program.parse();
-//# sourceMappingURL=cli.cjs.map
+function showHelp() {
+  console.log(`
+ai-refactor-x - Zero-dependency AI-powered code refactoring tool
+
+Usage: ai-refactor-x <command> [path] [options]
+
+Commands:
+  analyze <path>        Analyze code and identify issues
+  suggest <path>        Generate refactoring suggestions
+  refactor <path>       Apply refactoring fixes
+  fix <path>            Quick fix command
+  info <path>           Get codebase information
+
+Options:
+  --format <format>         Output format (console|json|markdown)
+  --output-format <format>  Alias for --format
+  --severity <level>        Filter by severity (critical|high|medium|low)
+  --category <category>     Filter by category
+  --save <file>             Save suggestions to file
+  --save-report <file>      Save analysis report to file
+  --fix                     Apply fixes automatically
+  --dry-run                 Show what would be fixed without changes
+  --backup                  Create backup before changes
+  --config <file>           Configuration file path
+  -v, --verbose             Verbose output
+
+Examples:
+  ai-refactor-x analyze ./src --format json
+  ai-refactor-x refactor ./src --fix --dry-run
+  ai-refactor-x suggest ./src --save suggestions.json
+  ai-refactor-x info ./src
+`);
+}
+async function main() {
+  const args = process.argv.slice(2);
+  if (args.length === 0 || args[0] === "--help" || args[0] === "-h") {
+    showHelp();
+    return;
+  }
+  if (args[0] === "--version" || args[0] === "-v") {
+    console.log("ai-refactor-x 1.0.0");
+    return;
+  }
+  const parsed = parseArgs(args);
+  try {
+    switch (parsed.command) {
+      case "analyze":
+        await handleAnalyze(parsed.path, parsed.options);
+        break;
+      case "suggest":
+        await handleSuggest(parsed.path, parsed.options);
+        break;
+      case "refactor":
+        await handleRefactor(parsed.path, parsed.options);
+        break;
+      case "fix":
+        await handleFix(parsed.path, parsed.options);
+        break;
+      case "info":
+        await handleInfo(parsed.path, parsed.options);
+        break;
+      default:
+        console.error(`Unknown command: ${parsed.command}`);
+        showHelp();
+        process.exit(1);
+    }
+  } catch (error) {
+    console.error(`Command failed: ${error.message}`);
+    process.exit(1);
+  }
+}
+main().catch((error) => {
+  console.error(`Fatal: ${error.message}`);
+  process.exit(1);
+});
+//# sourceMappingURL=simple-cli.cjs.map
