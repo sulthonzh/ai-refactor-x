@@ -1,0 +1,48 @@
+{
+  "name": "ai-refactor-x",
+  "version": "1.0.0",
+  "description": "Zero-dependency AI-powered code refactoring tool",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "ai-refactor-x": "./dist/simple-cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "node --test dist/test/*.js",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "refactor",
+    "code-analysis",
+    "typescript",
+    "javascript",
+    "zero-dependencies",
+    "cli",
+    "automation"
+  ],
+  "author": "Sulthonzh",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.5.1"
+  }
+}
