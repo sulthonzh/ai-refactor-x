@@ -1,6 +1,6 @@
 {
   "name": "ai-refactor-x",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Zero-dependency AI-powered code refactoring tool",
   "type": "module",
   "main": "./dist/index.js",
@@ -27,6 +27,7 @@
   "scripts": {
     "build": "tsup",
     "test": "node --test test/*.js",
+    "test:core": "node --test test/*.js",
     "lint": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },

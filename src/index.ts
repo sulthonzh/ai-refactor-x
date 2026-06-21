@@ -7,6 +7,9 @@ import type {
   RefactoringSuggestion
 } from './types.js';
 
+// Version constant matching package.json
+export const VERSION = '1.1.0';
+
 export { AIRefactor };
 
 // Create default instance
