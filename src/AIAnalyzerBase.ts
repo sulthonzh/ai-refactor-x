@@ -1,4 +1,4 @@
-import type { RefactorConfig } from './types.js';
+import type { RefactorConfig, RegExpMatch } from './types.js';
 
 export class AIAnalyzerBase {
   protected config: RefactorConfig;

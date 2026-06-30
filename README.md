@@ -1,6 +1,8 @@
 # ai-refactor-x
 
-Zero-dependency AI-powered code refactoring tool. 24 tests, 100% pass rate, comprehensive analysis for magic numbers, debug code, unused variables, and code quality issues.
+Your codebase has 47 `TODO`s, 12 magic numbers, and 3 functions over 200 lines. ai-refactor-x finds them all — zero dependencies, zero API keys, zero excuses.
+
+Static analysis with AI-powered refactoring suggestions. Detects magic numbers, debug code, unused variables, nested loops, and code quality issues across your entire project. 24 tests, 100% pass rate.
 
 ## Features
 

@@ -10,7 +10,8 @@ export interface RefactorConfig {
 }
 
 export interface CodeIssue {
-  type: 'comprehension' | 'architectural' | 'verification';
+  id?: string;
+  type: 'comprehension' | 'architectural' | 'verification' | 'performance';
   severity: 'low' | 'medium' | 'high' | 'critical';
   category: string;
   title: string;
@@ -93,6 +94,9 @@ export interface PatternMatch {
   matches: RegExpMatch[];
   type: 'code' | 'comment' | 'string';
 }
+
+// Extend CodeIssue to include 'performance' type used by AIAnalyzer
+// This is a module augmentation pattern
 
 export interface RegExpMatch {
   pattern: string;

@@ -1,5 +1,5 @@
-import { readdir, readFile, stat } from 'fs/promises';
-import { join, extname, relative } from 'path';
+import { readdir, readFile, stat, mkdir } from 'fs/promises';
+import { join, extname, relative, dirname } from 'path';
 import type { RefactorConfig, PatternMatch } from './types.js';
 
 export class FileProcessor {
@@ -180,8 +180,8 @@ export class FileProcessor {
     regex = regex.replace(/[-\/\\^$.+()|[\]{}]/g, '\\$&');
     
     // Convert brace expansion {a,b,c} to (a|b|c)
-    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match, content) => {
-      const alternatives = content.split(',').map(a => a.trim()).join('|');
+    regex = regex.replace(/__ALT_START__(.*?)__ALT_END__/g, (match: string, content: string) => {
+      const alternatives = content.split(',').map((a: string) => a.trim()).join('|');
       return `(?:${alternatives})`;
     });
     
@@ -232,7 +232,7 @@ export class FileProcessor {
     const patterns: PatternMatch[] = [];
     
     // Common patterns to look for
-    const patternDefinitions = [
+    const patternDefinitions: { regex: RegExp; type: 'code' | 'comment' | 'string' }[] = [
       { regex: /import\s+{[^}]+}\s+from/g, type: 'code' },
       { regex: /require\([^)]+\)/g, type: 'code' },
       { regex: /console\.[\w]+\([^)]*\)/g, type: 'code' },
