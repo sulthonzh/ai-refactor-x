@@ -53,5 +53,8 @@
   "homepage": "https://github.com/sulthonzh/ai-refactor-x#readme",
   "bugs": {
     "url": "https://github.com/sulthonzh/ai-refactor-x/issues"
+  },
+  "overrides": {
+    "esbuild": "0.28.1"
   }
 }
