@@ -1,5 +1,4 @@
-import { readdir, readFile, writeFile, stat } from 'fs/promises';
-import { join, extname, relative } from 'path';
+import { readFile, writeFile, stat } from 'fs/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { AIAnalyzer } from './AIAnalyzer.js';
@@ -144,18 +143,29 @@ export class AIRefactor {
       issues = analysis.issues.filter(issue => issue.fixable);
     }
 
+    // Generate suggestions for the issues
+    const suggestions: RefactoringSuggestion[] = [];
+    for (const issue of issues) {
+      try {
+        const suggestion = await this.fixer.generateSuggestion(issue, path);
+        suggestions.push(suggestion);
+      } catch (error) {
+        // Skip issues that can't generate suggestions
+      }
+    }
+
     const result: AnalysisResult = {
       files: [],
       totalFiles: 0,
       issues,
-      suggestions: [],
-      summary: this.calculateSummary(issues, []),
+      suggestions,
+      summary: this.calculateSummary(issues, suggestions),
       warnings: [],
       errors: []
     };
 
     // Apply fixes
-    await this.applyFixes(result.suggestions, { fix: true, backup: true, dryRun: false, verbose: true, interactive: false, output: '', yes: true });
+    await this.applyFixes(suggestions, { fix: true, backup: true, dryRun: false, verbose: true, interactive: false, output: '', yes: true });
 
     return result;
   }

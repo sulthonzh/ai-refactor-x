@@ -57,7 +57,8 @@ export class FileProcessor {
       await this.walkDirectory(rootPath, pattern, ignorePatterns, files);
     } else {
       // Handle specific file extensions
-      const files = await this.findFilesByExtension(rootPath, pattern, ignorePatterns);
+      const found = await this.findFilesByExtension(rootPath, pattern, ignorePatterns);
+      files.push(...found);
     }
 
     return files;

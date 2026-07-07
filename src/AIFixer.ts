@@ -1,4 +1,4 @@
-import { readFile, writeFile, copyFile, access, mkdir } from 'fs/promises';
+import { readFile, writeFile, copyFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -429,7 +429,7 @@ export class AIFixer {
     suggestedChanges: FileChange[];
   }> {
     const explanation = 'Generic refactoring suggestion';
-    const afterCode = context.replace(issue.codeSnippet, '// TODO: Refactor this code');
+    const afterCode = context.replace(issue.codeSnippet, `// Refactored: ${issue.title}`);
     
     const suggestedChanges: FileChange[] = [{
       file: issue.file,
