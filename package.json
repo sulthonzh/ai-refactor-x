@@ -26,6 +26,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "pretest": "npm run build",
     "test": "node --test test/*.js",
     "test:core": "node --test test/*.js",
     "lint": "tsc --noEmit",
